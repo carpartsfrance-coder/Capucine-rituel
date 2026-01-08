@@ -8,6 +8,31 @@
     />
     <title>Rituel de Capucine</title>
 
+    <!-- Métadonnées de partage (Open Graph / réseaux sociaux) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Rituel de Capucine" />
+    <meta
+      property="og:description"
+      content="Une petite app toute douce pour suivre le rituel santé de Capucine jour après jour."
+    />
+    <meta
+      property="og:image"
+      content="https://capucine-rituel.onrender.com/assets/photos-capucine/PHOTO-2025-06-20-14-35-20.jpg"
+    />
+    <meta property="og:image:alt" content="Photo douce de Capucine pour illustrer son rituel quotidien" />
+    <meta property="og:url" content="https://capucine-rituel.onrender.com" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Rituel de Capucine" />
+    <meta
+      name="twitter:description"
+      content="Suivi quotidien, douceur et bienveillance pour accompagner Capucine."
+    />
+    <meta
+      name="twitter:image"
+      content="https://capucine-rituel.onrender.com/assets/photos-capucine/PHOTO-2025-06-20-14-35-20.jpg"
+    />
+
     <!-- Tailwind + polices pour le design fourni -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link
@@ -108,14 +133,7 @@
             </p>
           </div>
         </div>
-        <div class="flex items-center gap-2">
-          <button
-            class="size-10 flex items-center justify-center rounded-full bg-white dark:bg-surface-dark shadow-soft text-text-sub hover:text-primary transition-colors"
-            type="button"
-          >
-            <span class="material-symbols-outlined">notifications</span>
-          </button>
-        </div>
+        
       </header>
 
       <!-- Onglets Aujourd'hui / Historique -->
@@ -1123,6 +1141,86 @@
           </header>
 
           <form id="edit-form" class="flex flex-col gap-6 mt-2 px-4 pb-4">
+            <!-- Humeur -->
+            <section>
+              <h3
+                class="text-lg font-bold text-text-main dark:text-white mb-4 flex items-center gap-2"
+              >
+                <span class="material-symbols-outlined text-primary"
+                  >sentiment_satisfied</span
+                >
+                Comment tu te sentais ce jour-là ?
+              </h3>
+              <div
+                class="flex justify-between items-center bg-white dark:bg-surface-dark p-4 rounded-xl shadow-soft"
+              >
+                <button
+                  type="button"
+                  class="edit-mood-btn group flex flex-col items-center gap-2 transition-all"
+                  data-mood="1"
+                >
+                  <span
+                    class="text-3xl filter grayscale group-hover:grayscale-0 transition-all opacity-50 group-hover:opacity-100"
+                    >😫</span
+                  >
+                  <div
+                    class="h-1 w-1 rounded-full bg-primary opacity-0 group-hover:opacity-100"
+                  ></div>
+                </button>
+                <button
+                  type="button"
+                  class="edit-mood-btn group flex flex-col items-center gap-2 transition-all"
+                  data-mood="2"
+                >
+                  <span
+                    class="text-3xl filter grayscale group-hover:grayscale-0 transition-all opacity-50 group-hover:opacity-100"
+                    >😕</span
+                  >
+                  <div
+                    class="h-1 w-1 rounded-full bg-primary opacity-0 group-hover:opacity-100"
+                  ></div>
+                </button>
+                <button
+                  type="button"
+                  class="edit-mood-btn group flex flex-col items-center gap-2 transition-all"
+                  data-mood="3"
+                >
+                  <span
+                    class="text-4xl shadow-lg rounded-full bg-primary/10 p-1"
+                    >😐</span
+                  >
+                  <div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
+                </button>
+                <button
+                  type="button"
+                  class="edit-mood-btn group flex flex-col items-center gap-2 transition-all"
+                  data-mood="4"
+                >
+                  <span
+                    class="text-3xl filter grayscale group-hover:grayscale-0 transition-all opacity-50 group-hover:opacity-100"
+                    >🙂</span
+                  >
+                  <div
+                    class="h-1 w-1 rounded-full bg-primary opacity-0 group-hover:opacity-100"
+                  ></div>
+                </button>
+                <button
+                  type="button"
+                  class="edit-mood-btn group flex flex-col items-center gap-2 transition-all"
+                  data-mood="5"
+                >
+                  <span
+                    class="text-3xl filter grayscale group-hover:grayscale-0 transition-all opacity-50 group-hover:opacity-100"
+                    >🤩</span
+                  >
+                  <div
+                    class="h-1 w-1 rounded-full bg-primary opacity-0 group-hover:opacity-100"
+                  ></div>
+                </button>
+              </div>
+              <input type="hidden" id="edit-moodValue" />
+            </section>
+
             <!-- Poids / tension -->
             <section>
               <div class="grid grid-cols-2 gap-4">

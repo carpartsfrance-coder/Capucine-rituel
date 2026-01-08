@@ -49,6 +49,15 @@
     if (entry.notes && entry.notes.trim()) {
       lines.push(`Notes: ${entry.notes.trim()}`);
     }
+    // Lien direct vers l'app sur la journée partagée
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'history');
+      url.searchParams.set('date', entry.date);
+      lines.push('', `Voir cette journée dans son rituel : ${url.toString()}`);
+    } catch (_) {
+      // en cas d'erreur d'URL, on ignore simplement
+    }
     lines.push('— partagé depuis son petit rituel ✨');
 
     const text = lines.join('\n');
@@ -145,31 +154,16 @@
       return 'assets/turtle-enceinte.png';
     }
 
-    const map = loadSuccessDateMap();
-    let index = map[dateKey];
-    if (typeof index === 'number' && index >= 0 && index < SUCCESS_IMAGES.length) {
-      return SUCCESS_IMAGES[index];
+    // Calcul déterministe basé sur la date pour que tous les appareils
+    // obtiennent exactement la même image pour un jour donné
+    const source = `${dateKey}-success`;
+    let hash = 0;
+    for (let i = 0; i < source.length; i += 1) {
+      hash = (hash << 5) - hash + source.charCodeAt(i);
+      hash |= 0; // force en entier 32 bits
     }
-
-    const used = new Set();
-    Object.values(map).forEach((v) => {
-      if (typeof v === 'number') used.add(v);
-    });
-
-    let candidates = [];
-    for (let i = 0; i < SUCCESS_IMAGES.length; i += 1) {
-      if (!used.has(i)) candidates.push(i);
-    }
-    if (!candidates.length) {
-      // Toutes les images ont déjà été utilisées au moins une fois, on repart sur l’ensemble
-      candidates = Array.from({ length: SUCCESS_IMAGES.length }, (_, i) => i);
-    }
-
-    const rand = Math.floor(Math.random() * candidates.length);
-    index = candidates[rand];
-    map[dateKey] = index;
-    saveSuccessDateMap(map);
-    return SUCCESS_IMAGES[index];
+    const index = Math.abs(hash) % SUCCESS_IMAGES.length;
+    return SUCCESS_IMAGES[index] || 'assets/turtle-enceinte.png';
   }
 
   function openImageLightbox(url) {
@@ -591,6 +585,15 @@
     ];
     if (entry.notes && entry.notes.trim()) {
       lines.push(`Notes: ${entry.notes.trim()}`);
+    }
+    // Lien direct vers l'app sur la journée partagée
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'history');
+      url.searchParams.set('date', entry.date);
+      lines.push('', `Voir cette journée dans son rituel : ${url.toString()}`);
+    } catch (_) {
+      // en cas d'erreur d'URL, on ignore simplement
     }
     lines.push('— partagé depuis son petit rituel ✨');
 
@@ -1067,7 +1070,7 @@
       if (isPerfect) {
         const badge = document.createElement('span');
         badge.className =
-          'bg-success-text/10 text-success-text dark:text-green-300 text-[10px] font-bold px-2 py-0.5 rounded-full';
+          'shrink-0 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-200 text-[10px] font-semibold uppercase tracking-wide';
         badge.textContent = 'Parfait !';
         titleRow.appendChild(badge);
       }
@@ -1479,6 +1482,26 @@
     renderHistory(entries);
     updateHeaderAndStreak(entries);
     updateHistoryStats(entries);
+
+    // Deep-linking : si l’URL contient ?tab=history&date=YYYY-MM-DD,
+    // on ouvre directement l’onglet Historique et, si possible, la journée ciblée.
+    try {
+      const params = new URLSearchParams(window.location.search || '');
+      const initialTab = params.get('tab');
+      const targetDate = params.get('date');
+
+      if (initialTab === 'history') {
+        setActiveTab('history');
+        if (targetDate) {
+          const targetEntry = entries.find((e) => e.date === targetDate);
+          if (targetEntry) {
+            openDetailOverlay(targetEntry);
+          }
+        }
+      }
+    } catch (_) {
+      // si l'URL n'est pas exploitable, on ignore simplement
+    }
 
     setupAutoSaveForTodayForm();
 

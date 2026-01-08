@@ -43,6 +43,10 @@ const entrySchema = new mongoose.Schema(
     fatigue: Boolean,
     breathless: Boolean,
     notes: String,
+    // Index de la pensée du jour (dans DAILY_QUOTES côté front)
+    quoteIndex: Number,
+    // Index de la photo de récompense (dans SUCCESS_IMAGES côté front)
+    successImageIndex: Number,
   },
   {
     timestamps: true,
@@ -96,6 +100,14 @@ app.post('/entries', async (req, res) => {
       fatigue: !!data.fatigue,
       breathless: !!data.breathless,
       notes: data.notes || '',
+      quoteIndex:
+        typeof data.quoteIndex === 'number' && !Number.isNaN(data.quoteIndex)
+          ? data.quoteIndex
+          : null,
+      successImageIndex:
+        typeof data.successImageIndex === 'number' && !Number.isNaN(data.successImageIndex)
+          ? data.successImageIndex
+          : null,
     };
 
     const entry = await Entry.findOneAndUpdate(
