@@ -406,7 +406,8 @@
     'assets/photos-capucine/PHOTO-2026-01-07-21-29-03.jpg',
   ];
 
-  const API_BASE_URL = 'http://localhost:3001';
+  // Base API dynamique: en prod et en local, on utilise la même origine
+  const API_BASE_URL = '';
 
   function formatDate(date) {
     const y = date.getFullYear();
@@ -1234,7 +1235,7 @@
     return `"${str}"`;
   }
 
-  function exportForDoctor(entries) {
+  function exportForDoctor(entries, existingWindow) {
     if (!entries.length) {
       showToast("Pas encore de journée à exporter.");
       return;
@@ -1386,11 +1387,15 @@
         </body>
       </html>`;
 
-    const win = window.open('', '_blank');
+    let win = existingWindow;
     if (!win) {
-      showToast("Impossible d'ouvrir le rapport. Vérifie que les fenêtres pop-up sont autorisées.");
-      return;
+      win = window.open('', '_blank');
+      if (!win) {
+        showToast("Impossible d'ouvrir le rapport. Vérifie que les fenêtres pop-up sont autorisées.");
+        return;
+      }
     }
+    win.document.open();
     win.document.write(docHtml);
     win.document.close();
     win.focus();
@@ -1490,8 +1495,10 @@
     const exportBtn = document.getElementById('exportBtn');
     if (exportBtn) {
       exportBtn.addEventListener('click', async () => {
+        // Ouvre la fenêtre tout de suite pour éviter les blocages de pop-up sur mobile
+        const win = window.open('', '_blank');
         const allEntries = await fetchEntriesFromBackend();
-        exportForDoctor(allEntries);
+        exportForDoctor(allEntries, win);
       });
     }
 
