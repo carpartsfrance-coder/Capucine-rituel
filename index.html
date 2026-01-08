@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html class="light" lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Rituel de Capucine</title>
+
+    <!-- Tailwind + polices pour le design fourni -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Spline+Sans:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
+
+    <script id="tailwind-config">
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              primary: '#ee2b5b',
+              'primary-soft': '#fef2f5',
+              'background-light': '#fff5f7',
+              'background-dark': '#221015',
+              'surface-light': '#ffffff',
+              'surface-dark': '#331820',
+              'text-main': '#1b0d11',
+              'text-sub': '#9a4c5f',
+              'text-subtle': '#8a7a7e',
+              'success-soft': '#E3FCEF',
+              'success-text': '#0F5132',
+            },
+            fontFamily: {
+              display: ['Spline Sans', 'sans-serif'],
+            },
+            borderRadius: {
+              DEFAULT: '1rem',
+              lg: '1.5rem',
+              xl: '2rem',
+              '2xl': '2.5rem',
+              full: '9999px',
+            },
+            boxShadow: {
+              soft: '0 8px 24px -6px rgba(238, 43, 91, 0.12)',
+              'inner-soft': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.03)',
+            },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      body {
+        min-height: max(884px, 100dvh);
+      }
+    </style>
+
+    <!-- CSS local existant (toast, historique, etc.) -->
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark font-display text-text-main dark:text-white antialiased transition-colors duration-200"
+  >
+    <div
+      class="relative flex h-full min-h-screen w-full max-w-md mx-auto flex-col overflow-hidden shadow-2xl bg-background-light dark:bg-background-dark"
+    >
+      <!-- En-tête avec avatar + date -->
+      <header
+        class="flex items-center justify-between p-6 pb-2 sticky top-0 z-50 bg-background-light/90 dark:bg-background-dark/90 backdrop-blur-md"
+      >
+        <div class="flex items-center gap-3">
+          <div class="relative group cursor-pointer">
+            <div
+              class="size-12 rounded-full bg-cover bg-center border-2 border-white dark:border-surface-dark shadow-sm"
+              style="
+                background-image: url('assets/turtle-enceinte.png');
+              "
+            ></div>
+            <div
+              class="absolute bottom-0 right-0 size-3 bg-green-400 rounded-full border-2 border-white dark:border-surface-dark"
+            ></div>
+          </div>
+          <div>
+            <h2
+              class="text-xs font-semibold text-primary uppercase tracking-wider"
+            >
+              Rituel quotidien
+            </h2>
+            <p
+              id="today-date"
+              class="text-sm font-medium text-text-sub dark:text-pink-200"
+            >
+              <!-- La date du jour sera remplie en JS -->
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            class="size-10 flex items-center justify-center rounded-full bg-white dark:bg-surface-dark shadow-soft text-text-sub hover:text-primary transition-colors"
+            type="button"
+          >
+            <span class="material-symbols-outlined">notifications</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Onglets Aujourd'hui / Historique -->
+      <div class="px-6 pt-1 flex gap-2">
+        <button
+          class="tab-button active flex-1 text-sm font-medium rounded-full bg-white text-text-main dark:bg-surface-dark dark:text-white py-2 shadow-soft"
+          data-tab="today"
+          type="button"
+        >
+          Aujourd'hui
+        </button>
+        <button
+          class="tab-button flex-1 text-sm font-medium rounded-full bg-white/40 text-text-sub dark:bg-surface-dark/60 dark:text-pink-200 py-2"
+          data-tab="history"
+          type="button"
+        >
+          Historique
+        </button>
+      </div>
+
+      <main class="flex-1 overflow-y-auto px-6 pb-32 pt-2 no-scrollbar">
+        <!-- Onglet Aujourd'hui -->
+        <section id="tab-today" class="tab active">
+          <form id="today-form" class="flex flex-col gap-8 pb-4">
+            <!-- Bonjour + pensée du jour -->
+            <div class="mt-2">
+              <h1
+                class="text-3xl font-bold text-text-main dark:text-white leading-tight"
+              >
+                Bonjour, <span class="text-primary">Capucine</span> 🌸
+              </h1>
+              <p
+                class="text-text-sub dark:text-gray-400 mt-1"
+                id="daily-message"
+              >
+                Bibi, ta famille et Turtle sont fiers de toi.
+              </p>
+            </div>
+
+            
+
+            <!-- Carte motivation / pensée du jour visuelle -->
+            <div
+              class="group relative overflow-hidden rounded-2xl bg-white dark:bg-surface-dark p-1 shadow-soft"
+            >
+              <div
+                class="relative z-10 flex flex-row items-center gap-4 bg-white dark:bg-surface-dark p-5 rounded-xl"
+              >
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span
+                      class="bg-primary/10 text-primary text-xs font-bold px-2 py-1 rounded-full"
+                      >Pensée du jour</span
+                    >
+                  </div>
+                  <p
+                    id="daily-message-visual"
+                    class="text-text-main dark:text-gray-100 text-sm font-medium leading-relaxed italic"
+                  ></p>
+                </div>
+                <div
+                  class="w-20 h-20 shrink-0 rounded-full bg-cover bg-center shadow-inner"
+                  style="
+                    background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBG67DNwouNBbfJqsvfOi5v3zfO2m0ZXNsTD8rOEXygxae-jDBdqHHlZtHNY24pAtwA7eA9e4NWQ4UcjUNIMLPZ4SaRy7xO_hgnKwEKzEU_Qh1AejXcwLTrwvezZPy_J8kcvwwxUk4niXIhB2VNgaFeKKedpoEz3Aevq2F02SUYhqcNqq9GL0-T-gb9Uj0xz7B-7IPa4eAoOSM7l8SAJbwR8OeGXnRQNy8aA7Nhf1-s0QZTeSrIVqOTewgLOuFHRWTXdWRkkkG94zU');
+                  "
+                ></div>
+              </div>
+              <div
+                class="absolute -top-10 -right-10 w-32 h-32 bg-primary/5 rounded-full blur-2xl pointer-events-none"
+              ></div>
+            </div>
+
+            <!-- Humeur -->
+            <section>
+              <h3
+                class="text-lg font-bold text-text-main dark:text-white mb-4 flex items-center gap-2"
+              >
+                <span class="material-symbols-outlined text-primary"
+                  >sentiment_satisfied</span
+                >
+                Comment tu te sens ?
+              </h3>
+              <div
+                class="flex justify-between items-center bg-white dark:bg-surface-dark p-4 rounded-xl shadow-soft"
+              >
+                <button
+                  type="button"
+                  class="mood-btn group flex flex-col items-center gap-2 transition-all"
+                  data-mood="1"
+                >
+                  <span
+                    class="text-3xl filter grayscale group-hover:grayscale-0 transition-all opacity-50 group-hover:opacity-100"
+                    >😫</span
+                  >
+                  <div
+                    class="h-1 w-1 rounded-full bg-primary opacity-0 group-hover:opacity-100"
+                  ></div>
+                </button>
+                <button
+                  type="button"
+                  class="mood-btn group flex flex-col items-center gap-2 transition-all"
+                  data-mood="2"
+                >
+                  <span
+                    class="text-3xl filter grayscale group-hover:grayscale-0 transition-all opacity-50 group-hover:opacity-100"
+                    >😕</span
+                  >
+                  <div
+                    class="h-1 w-1 rounded-full bg-primary opacity-0 group-hover:opacity-100"
+                  ></div>
+                </button>
+                <button
+                  type="button"
+                  class="mood-btn group flex flex-col items-center gap-2 transition-all"
+                  data-mood="3"
+                >
+                  <span
+                    class="text-4xl shadow-lg rounded-full bg-primary/10 p-1"
+                    >😐</span
+                  >
+                  <div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
+                </button>
+                <button
+                  type="button"
+                  class="mood-btn group flex flex-col items-center gap-2 transition-all"
+                  data-mood="4"
+                >
+                  <span
+                    class="text-3xl filter grayscale group-hover:grayscale-0 transition-all opacity-50 group-hover:opacity-100"
+                    >🙂</span
+                  >
+                  <div
+                    class="h-1 w-1 rounded-full bg-primary opacity-0 group-hover:opacity-100"
+                  ></div>
+                </button>
+                <button
+                  type="button"
+                  class="mood-btn group flex flex-col items-center gap-2 transition-all"
+                  data-mood="5"
+                >
+                  <span
+                    class="text-3xl filter grayscale group-hover:grayscale-0 transition-all opacity-50 group-hover:opacity-100"
+                    >🤩</span
+                  >
+                  <div
+                    class="h-1 w-1 rounded-full bg-primary opacity-0 group-hover:opacity-100"
+                  ></div>
+                </button>
+              </div>
+              <input type="hidden" id="moodValue" />
+            </section>
+            <section>
+              <h3
+                class="text-lg font-bold text-text-main dark:text-white mb-4 flex items-center gap-2"
+              >
+                <span class="material-symbols-outlined text-primary"
+                  >check_circle</span
+                >
+                Mes habitudes
+              </h3>
+              <div class="flex flex-col gap-3">
+                <!-- Hydratation -->
+                <label
+                  class="group relative flex items-center justify-between p-4 bg-white dark:bg-surface-dark rounded-xl shadow-soft cursor-pointer transition-all hover:shadow-md border border-transparent hover:border-primary/20"
+                >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-full text-blue-500"
+                    >
+                      <span class="material-symbols-outlined text-xl"
+                        >water_drop</span
+                      >
+                    </div>
+                    <div class="flex flex-col">
+                      <span
+                        class="font-semibold text-text-main dark:text-white"
+                        >Hydratation</span
+                      >
+                      <span class="text-xs text-text-sub"
+                        >Objectif : au moins 1L</span
+                      >
+                    </div>
+                  </div>
+                  <div class="relative">
+                    <input
+                      id="drank1L"
+                      type="checkbox"
+                      class="peer h-6 w-6 appearance-none rounded-full border-2 border-gray-300 checked:border-primary checked:bg-primary transition-colors focus:ring-0 focus:ring-offset-0"
+                    />
+                    <span
+                      class="material-symbols-outlined absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[16px] text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity"
+                      >check</span
+                    >
+                  </div>
+                </label>
+
+                <!-- Médicaments -->
+                <div
+                  class="group relative flex items-center justify-between p-4 bg-white dark:bg-surface-dark rounded-xl shadow-soft border border-transparent hover:border-primary/20"
+                >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="bg-red-100 dark:bg-red-900/30 p-2 rounded-full text-red-500"
+                    >
+                      <span class="material-symbols-outlined text-xl"
+                        >medication</span
+                      >
+                    </div>
+                    <div class="flex flex-col">
+                      <span
+                        class="font-semibold text-text-main dark:text-white"
+                        >Médicaments</span
+                      >
+                      <span class="text-xs text-text-sub"
+                        >Matin, midi, soir</span
+                      >
+                    </div>
+                  </div>
+                  <div class="flex gap-2">
+                    <label class="cursor-pointer">
+                      <input
+                        id="medsMorning"
+                        type="checkbox"
+                        class="peer sr-only"
+                      />
+                      <span
+                        class="inline-block px-2 py-1 rounded-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg"
+                        >Matin</span
+                      >
+                    </label>
+                    <label class="cursor-pointer">
+                      <input
+                        id="medsNoon"
+                        type="checkbox"
+                        class="peer sr-only"
+                      />
+                      <span
+                        class="inline-block px-2 py-1 rounded-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg"
+                        >Midi</span
+                      >
+                    </label>
+                    <label class="cursor-pointer">
+                      <input
+                        id="medsEvening"
+                        type="checkbox"
+                        class="peer sr-only"
+                      />
+                      <span
+                        class="inline-block px-2 py-1 rounded-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg"
+                        >Soir</span
+                      >
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Repas -->
+                <div
+                  class="group relative flex items-center justify-between p-4 bg-white dark:bg-surface-dark rounded-xl shadow-soft border border-transparent hover:border-primary/20"
+                >
+                  <div class="flex items-center gap-4">
+                    <div
+                      class="bg-green-100 dark:bg-green-900/30 p-2 rounded-full text-green-500"
+                    >
+                      <span class="material-symbols-outlined text-xl"
+                        >restaurant</span
+                      >
+                    </div>
+                    <div class="flex flex-col">
+                      <span
+                        class="font-semibold text-text-main dark:text-white"
+                        >Repas</span
+                      >
+                      <span class="text-xs text-text-sub"
+                        >Petit déj, déjeuner, dîner</span
+                      >
+                    </div>
+                  </div>
+                  <div class="flex gap-2">
+                    <label class="cursor-pointer">
+                      <input
+                        id="mealBreakfast"
+                        type="checkbox"
+                        class="peer sr-only"
+                      />
+                      <span
+                        class="inline-block px-2 py-1 rounded-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg"
+                        >Petit déj</span
+                      >
+                    </label>
+                    <label class="cursor-pointer">
+                      <input
+                        id="mealLunch"
+                        type="checkbox"
+                        class="peer sr-only"
+                      />
+                      <span
+                        class="inline-block px-2 py-1 rounded-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg"
+                        >Déjeuner</span
+                      >
+                    </label>
+                    <label class="cursor-pointer">
+                      <input
+                        id="mealDinner"
+                        type="checkbox"
+                        class="peer sr-only"
+                      />
+                      <span
+                        class="inline-block px-2 py-1 rounded-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg"
+                        >Dîner</span
+                      >
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Poids / tension -->
+            <section class="grid grid-cols-2 gap-4">
+              <div
+                class="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-soft flex flex-col gap-3"
+              >
+                <div class="flex items-center gap-2 text-text-sub">
+                  <span class="material-symbols-outlined text-lg"
+                    >monitor_weight</span
+                  >
+                  <span class="text-sm font-medium">Poids</span>
+                </div>
+                <div class="flex items-end gap-1">
+                  <input
+                    id="weightKg"
+                    type="number"
+                    step="0.1"
+                    class="w-full bg-background-light dark:bg-background-dark/50 border-none rounded-lg text-2xl font-bold text-text-main dark:text-white p-2 text-center focus:ring-2 focus:ring-primary/50 placeholder-gray-300"
+                    placeholder="--"
+                  />
+                  <span class="text-sm text-text-sub pb-3">kg</span>
+                </div>
+              </div>
+
+              <div
+                class="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-soft flex flex-col gap-3"
+              >
+                <div class="flex items-center gap-2 text-text-sub">
+                  <span class="material-symbols-outlined text-lg"
+                    >favorite</span
+                  >
+                  <span class="text-sm font-medium">Tension</span>
+                </div>
+                <div class="flex items-end gap-1 justify-center">
+                  <input
+                    id="bpSystolic"
+                    type="number"
+                    class="w-16 bg-background-light dark:bg-background-dark/50 border-none rounded-lg text-xl font-bold text-text-main dark:text-white p-2 text-center focus:ring-2 focus:ring-primary/50 placeholder-gray-300"
+                    placeholder="120"
+                  />
+                  <span class="text-sm text-text-sub pb-2">/</span>
+                  <input
+                    id="bpDiastolic"
+                    type="number"
+                    class="w-16 bg-background-light dark:bg-background-dark/50 border-none rounded-lg text-xl font-bold text-text-main dark:text-white p-2 text-center focus:ring-2 focus:ring-primary/50 placeholder-gray-300"
+                    placeholder="80"
+                  />
+                  <span class="text-sm text-text-sub pb-3">mmHg</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- Symptômes -->
+            <section>
+              <h3
+                class="text-lg font-bold text-text-main dark:text-white mb-4 flex items-center gap-2"
+              >
+                <span class="material-symbols-outlined text-primary"
+                  >stethoscope</span
+                >
+                Symptômes ressentis
+              </h3>
+              <div class="flex flex-wrap gap-2">
+                <label class="cursor-pointer">
+                  <input
+                    id="fatigue"
+                    type="checkbox"
+                    class="peer sr-only"
+                  />
+                  <span
+                    class="inline-block px-4 py-2 rounded-full bg-white dark:bg-surface-dark border border-gray-100 dark:border-gray-700 text-sm font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg shadow-sm"
+                    >🥱 Fatigue</span
+                  >
+                </label>
+                <label class="cursor-pointer">
+                  <input
+                    id="breathless"
+                    type="checkbox"
+                    class="peer sr-only"
+                  />
+                  <span
+                    class="inline-block px-4 py-2 rounded-full bg-white dark:bg-surface-dark border border-gray-100 dark:border-gray-700 text-sm font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg shadow-sm"
+                    >😮‍💨 Essoufflée</span
+                  >
+                </label>
+              </div>
+            </section>
+
+            <!-- Journal -->
+            <section class="mb-2">
+              <h3
+                class="text-lg font-bold text-text-main dark:text-white mb-4 flex items-center gap-2"
+              >
+                <span class="material-symbols-outlined text-primary"
+                  >edit_note</span
+                >
+                Journal
+              </h3>
+              <div class="relative">
+                <textarea
+                  id="notes"
+                  rows="3"
+                  class="w-full min-h-[120px] rounded-xl bg-white dark:bg-surface-dark border-none p-4 text-text-main dark:text-white shadow-soft focus:ring-2 focus:ring-primary/20 placeholder:text-gray-300 resize-none"
+                  placeholder="Comment s'est passée ta journée ? Écris ce que tu veux ici..."
+                ></textarea>
+                <div
+                  class="absolute bottom-3 right-3 text-xs text-gray-300 pointer-events-none"
+                >
+                  <span class="material-symbols-outlined text-lg"
+                    >sentiment_content</span
+                  >
+                </div>
+              </div>
+              <p
+                id="today-summary"
+                class="mt-2 text-xs text-text-sub dark:text-gray-400"
+              ></p>
+
+              <!-- Bouton visible même si le bouton flottant est masqué par le navigateur -->
+              <div class="mt-4">
+                <button
+                  type="submit"
+                  class="w-full bg-primary hover:bg-red-600 text-white font-bold py-3 px-4 rounded-full shadow-[0_8px_20px_rgba(238,43,91,0.4)] transition-all transform hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2 text-sm"
+                >
+                  <span>Journée terminée</span>
+                  <span class="text-base">✨</span>
+                </button>
+              </div>
+            </section>
+          </form>
+        </section>
+
+        <!-- Onglet Historique -->
+        <section id="tab-history" class="tab">
+          <div class="flex flex-col gap-6 pt-2"></div>
+            <!-- Statistiques hautes -->
+            <section class="flex gap-4">
+              <div
+                class="flex-1 bg-surface-light dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-black/5 dark:border-white/5 flex flex-col items-center justify-center gap-1"
+              >
+                <span
+                  id="history-streak-days"
+                  class="text-3xl font-bold text-primary"
+                  >0</span
+                >
+                <span
+                  class="text-xs text-gray-500 dark:text-gray-400 font-medium text-center"
+                  >Jours consécutifs</span
+                >
+              </div>
+              <div
+                class="flex-1 bg-surface-light dark:bg-surface-dark p-4 rounded-xl shadow-sm border border-black/5 dark:border-white/5 flex flex-col items-center justify-center gap-1"
+              >
+                <span
+                  id="history-success-rate"
+                  class="text-3xl font-bold text-success-text dark:text-green-400"
+                  >--%</span
+                >
+                <span
+                  class="text-xs text-gray-500 dark:text-gray-400 font-medium text-center"
+                  >Taux de réussite</span
+                >
+              </div>
+            </section>
+
+            <!-- Liste des jours -->
+            <div class="flex flex-col gap-3">
+              <p
+                class="text-sm font-bold text-gray-400 uppercase tracking-wider ml-2 mb-1"
+              >
+                Historique récent
+              </p>
+
+              <div id="history-empty" class="history-empty">
+                Pas encore de journées enregistrées. Ton rituel commence
+                aujourd'hui.
+              </div>
+
+              <div
+                id="history-content"
+                class="history-content hidden flex flex-col gap-3"
+              >
+                <div id="history-body" class="flex flex-col gap-3"></div>
+
+                <div class="flex justify-center mt-2">
+                  <button
+                    id="exportBtn"
+                    class="secondary-btn"
+                    type="button"
+                  >
+                    Exporter pour le médecin
+                  </button>
+                </div>
+
+                <div
+                  class="flex flex-col items-center justify-center py-4 opacity-60"
+                >
+                  <span
+                    class="material-symbols-outlined text-3xl text-gray-300 mb-1"
+                    >history</span
+                  >
+                  <p class="text-xs text-gray-400 font-medium">
+                    Fin de l'historique
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Pied de page + streak -->
+      <footer class="app-footer pb-24 px-6 text-center text-xs">
+        <p>Bibi, ta famille et Turtle sont avec toi, un jour après l'autre.</p>
+        <p id="streak-line" class="streak-line"></p>
+      </footer>
+
+      <!-- Overlay de félicitations après validation de la journée -->
+      <div
+        id="success-overlay"
+        class="fixed inset-0 z-50 hidden bg-background-light/95 dark:bg-background-dark/95"
+      >
+        <div
+          class="relative flex h-full min-h-screen w-full flex-col max-w-md mx-auto overflow-x-hidden bg-background-light dark:bg-background-dark shadow-2xl"
+        >
+          <!-- Barre du haut -->
+          <div
+            class="flex items-center p-4 pb-2 justify-between z-10"
+          >
+            <button
+              id="success-close"
+              type="button"
+              class="flex size-10 items-center justify-center rounded-full bg-white dark:bg-white/10 shadow-sm text-text-main dark:text-white hover:bg-gray-50 transition-colors"
+            >
+              <span class="material-symbols-outlined text-[24px]">close</span>
+            </button>
+            <h2
+              class="text-text-main dark:text-white text-lg font-bold leading-tight tracking-tight flex-1 text-center"
+            >
+              Bien joué !
+            </h2>
+            <button
+              id="success-share"
+              type="button"
+              class="flex size-10 items-center justify-center rounded-full bg-white dark:bg-white/10 shadow-sm text-primary hover:bg-primary-soft transition-colors"
+            >
+              <span class="material-symbols-outlined text-[20px]"
+                >ios_share</span
+              >
+            </button>
+          </div>
+
+          <!-- Contenu défilant -->
+          <main
+            class="flex-1 flex flex-col items-center px-6 pt-2 pb-8 overflow-y-auto no-scrollbar"
+          >
+            <!-- Titre principal -->
+            <div class="w-full text-center mt-4 mb-6">
+              <h1
+                class="text-primary tracking-tight text-[32px] font-bold leading-[1.1] mb-2 drop-shadow-sm"
+              >
+                Bravo Capucine 💖
+              </h1>
+              <p
+                class="text-text-subtle dark:text-gray-400 text-lg font-normal leading-normal"
+              >
+                Une étape de plus vers le bien-être.
+              </p>
+            </div>
+
+            <!-- Visuel avec Turtle -->
+            <div
+              class="relative w-full aspect-square max-w-[320px] flex items-center justify-center mb-8"
+            >
+              <div
+                class="absolute inset-0 bg-primary/20 blur-[60px] rounded-full scale-75 animate-pulse"
+              ></div>
+              <div
+                class="absolute top-0 right-10 w-24 h-24 bg-yellow-200/40 blur-[40px] rounded-full"
+              ></div>
+              <div
+                id="success-image"
+                class="relative z-10 w-full h-full rounded-2xl overflow-hidden shadow-sm border-4 border-white dark:border-white/5 bg-white dark:bg-white/5"
+                style="
+                  background-position: center;
+                  background-size: cover;
+                "
+              >
+                <div
+                  class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"
+                ></div>
+              </div>
+              <div
+                class="absolute -bottom-5 z-20 bg-white dark:bg-neutral-800 shadow-lg px-5 py-2.5 rounded-full flex items-center gap-2 border border-primary/10"
+              >
+                <div
+                  class="flex items-center justify-center bg-orange-100 dark:bg-orange-900/50 rounded-full p-1"
+                >
+                  <span
+                    class="material-symbols-outlined text-orange-500 text-[20px]"
+                    >local_fire_department</span
+                  >
+                </div>
+                <span
+                  id="success-streak-text"
+                  class="font-bold text-text-main dark:text-white text-sm whitespace-nowrap"
+                  >Jolie série en cours !</span
+                >
+              </div>
+            </div>
+
+            <!-- Carte Bibi / famille / Turtle -->
+            <div
+              class="w-full bg-white dark:bg-white/5 rounded-2xl p-6 shadow-[0_4px_20px_-4px_rgba(238,43,91,0.1)] border border-primary/5 mb-6"
+            >
+              <div class="flex items-start gap-4">
+                <div class="flex -space-x-3 shrink-0">
+                  <div
+                    class="size-10 rounded-full border-2 border-white dark:border-gray-800 bg-gray-200 bg-cover bg-center"
+                    style="
+                      background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBXiOrf4ghpmIPKvPstOGs7hZg6rFNNsRBg949Sh7FjKB0CASRDx1gXysiV1dJbl35wyxaJm9WHbAUQ-J7-UsNZMgSIJFuvE2Of9xHj1Xm7879DzSXamcAhYz_n1Fi3lteRosRnuSpbaJC0uetJS02U-UB9kyYycOAu-Z7qVVnnuVGo1xEE9JSokka--LFP8YNp6dIU5VW1Zb35thJyorEV0nKQIoljD9fZom0Nmw4pzgmlP40_5tsWGvJfbpIH0pcfca_n-wcARFM');
+                    "
+                  ></div>
+                  <div
+                    class="size-10 rounded-full border-2 border-white dark:border-gray-800 bg-gray-200 bg-cover bg-center"
+                    style="
+                      background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCQjgveAmf7gF1nCzSRB_TzmO8M6H9A2q6hOWyGaH-Z_UNEtLEZ2TCZ5WNmVQ3WRjGkorjQPHGeb32VoI4TcXPqfrD4_6UE6vcAFSH__hXkZmP2-ZBCmwuTzRETAUm5ZHJGcaQW8vTYl-5qDZ8qB4ARf1iOqzpTv9QU4fhsa-1hvW-2bSCBsORu0I5YchdrEBONuRRMr-hwAupNHyBWrXEwulHCGOcp0XguAIBtKrZRbzfY11sOWdyvOp_kGuxT8g6uMxFak_e7kpQ');
+                    "
+                  ></div>
+                  <div
+                    class="size-10 rounded-full border-2 border-white dark:border-gray-800 bg-primary/20 flex items-center justify-center text-primary"
+                  >
+                    <span class="material-symbols-outlined text-[18px]"
+                      >pets</span
+                    >
+                  </div>
+                </div>
+                <div>
+                  <p
+                    class="text-sm font-bold text-text-main dark:text-white mb-1"
+                  >
+                    Bibi, ta famille et Turtle
+                  </p>
+                  <p
+                    class="text-sm text-text-subtle dark:text-gray-300 leading-relaxed italic"
+                  >
+                    "Nous sommes fiers de toi ! Continue comme ça, tu
+                    rayonnes."
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Conseil -->
+            <div
+              class="w-full bg-primary/5 dark:bg-primary/10 rounded-xl p-5 mb-8 flex items-start gap-3"
+            >
+              <span
+                class="material-symbols-outlined text-primary text-[24px] shrink-0 mt-0.5"
+                >spa</span
+              >
+              <div>
+                <h3 class="text-primary font-bold text-sm mb-1">
+                  Le conseil du jour
+                </h3>
+                <p
+                  class="text-text-main dark:text-gray-200 text-sm leading-relaxed"
+                >
+                  Prendre du temps pour soi n'est pas égoïste, c'est essentiel
+                  pour recharger ses batteries.
+                </p>
+              </div>
+            </div>
+          </main>
+
+          <!-- Boutons bas de page -->
+          <div
+            class="p-6 bg-background-light dark:bg-background-dark/95 backdrop-blur-sm sticky bottom-0 z-20 w-full"
+          >
+            <button
+              id="success-main-cta"
+              type="button"
+              class="w-full flex items-center justify-center h-14 bg-primary hover:bg-red-600 active:scale-[0.98] transition-all rounded-full shadow-lg shadow-primary/30 group"
+            >
+              <span
+                class="text-white text-lg font-bold tracking-wide mr-2"
+                >À demain !</span
+              >
+              <span
+                class="material-symbols-outlined text-white group-hover:translate-x-1 transition-transform"
+                >arrow_forward</span
+              >
+            </button>
+            <button
+              id="success-secondary-cta"
+              type="button"
+              class="w-full mt-3 py-2 text-text-subtle dark:text-gray-400 text-sm font-medium hover:text-primary transition-colors"
+            >
+              Partager ma victoire
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overlay de détail d'une journée de l'historique -->
+      <div
+        id="detail-overlay"
+        class="fixed inset-0 z-50 hidden bg-background-light/95 dark:bg-background-dark/95"
+      >
+        <div
+          class="relative mx-auto flex h-full min-h-screen w-full max-w-md flex-col overflow-x-hidden bg-background-light dark:bg-background-dark pb-4 shadow-2xl"
+        >
+          <!-- En-tête détail -->
+          <header
+            class="sticky top-0 z-10 flex items-center justify-between bg-background-light/90 px-4 py-4 backdrop-blur-md dark:bg-background-dark/90"
+          >
+            <button
+              id="detail-back"
+              type="button"
+              class="flex size-10 items-center justify-center rounded-full bg-white text-text-main shadow-sm transition active:scale-95 dark:bg-surface-dark dark:text-white"
+            >
+              <span class="material-symbols-outlined text-[24px]"
+                >arrow_back</span
+              >
+            </button>
+            <h2
+              id="detail-title"
+              class="flex-1 text-center text-lg font-bold leading-tight tracking-tight"
+            >
+              Détail du jour
+            </h2>
+            <button
+              id="detail-edit"
+              type="button"
+              class="rounded-full bg-primary px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-red-600 active:scale-95 shadow-primary/30"
+            >
+              Modifier
+            </button>
+          </header>
+
+          <!-- Humeur / visuel -->
+          <section class="mt-2 flex flex-col items-center gap-4 px-6 py-6">
+            <div
+              class="relative flex aspect-square w-40 flex-col items-center justify-center rounded-full bg-surface-light p-2 shadow-sm ring-4 ring-primary/10 dark:bg-surface-dark dark:ring-primary/20"
+              style="background-image: url('assets/turtle-enceinte.png'); background-size: cover; background-position: center;"
+            >
+              <div
+                class="absolute inset-0 rounded-full bg-gradient-to-tr from-primary/5 to-primary/20 opacity-50"
+              ></div>
+            </div>
+            <div class="flex flex-col items-center justify-center">
+              <h1
+                id="detail-mood-label"
+                class="text-3xl font-bold tracking-tight text-text-main dark:text-white"
+              >
+                Humeur
+              </h1>
+              <p class="text-text-sub dark:text-text-subtle font-medium">
+                Humeur du jour
+              </p>
+            </div>
+          </section>
+
+          <!-- Poids / tension -->
+          <section class="px-4 py-2">
+            <div class="grid grid-cols-2 gap-4">
+              <div
+                class="group flex flex-col justify-between gap-3 rounded-2xl bg-white p-5 shadow-sm transition hover:shadow-md dark:bg-surface-dark"
+              >
+                <div class="flex items-center gap-2 text-primary">
+                  <span class="material-symbols-outlined">monitor_weight</span>
+                  <span
+                    class="text-sm font-bold uppercase tracking-wider opacity-80"
+                    >Poids</span
+                  >
+                </div>
+                <div>
+                  <p
+                    class="text-3xl font-bold tracking-tight text-text-main dark:text-white"
+                  >
+                    <span id="detail-weight">--</span>
+                    <span
+                      class="text-lg font-medium text-text-sub dark:text-text-subtle"
+                      >kg</span
+                    >
+                  </p>
+                </div>
+              </div>
+
+              <div
+                class="group flex flex-col justify-between gap-3 rounded-2xl bg-white p-5 shadow-sm transition hover:shadow-md dark:bg-surface-dark"
+              >
+                <div class="flex items-center gap-2 text-primary">
+                  <span class="material-symbols-outlined">favorite</span>
+                  <span
+                    class="text-sm font-bold uppercase tracking-wider opacity-80"
+                    >Tension</span
+                  >
+                </div>
+                <div>
+                  <p
+                    id="detail-bp"
+                    class="text-3xl font-bold tracking-tight text-text-main dark:text-white"
+                  >
+                    -- / --
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Habitudes -->
+          <section class="mt-6 flex flex-col gap-3 px-4">
+            <h3
+              class="ml-1 text-lg font-bold leading-tight tracking-tight text-text-main dark:text-white"
+            >
+              Habitudes
+            </h3>
+            <div class="flex flex-col gap-3">
+              <!-- Médicaments -->
+              <div
+                class="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm dark:bg-surface-dark"
+              >
+                <div class="flex items-center gap-4">
+                  <div
+                    class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-300"
+                  >
+                    <span class="material-symbols-outlined">pill</span>
+                  </div>
+                  <div class="flex flex-col">
+                    <span
+                      class="text-base font-bold text-text-main dark:text-white"
+                      >Médicaments</span
+                    >
+                    <span
+                      id="detail-meds-text"
+                      class="text-sm text-text-sub dark:text-text-subtle"
+                      >Non renseigné</span
+                    >
+                  </div>
+                </div>
+                <div
+                  id="detail-meds-status"
+                  class="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+                >
+                  <span class="material-symbols-outlined text-lg font-bold"
+                    >check</span
+                  >
+                </div>
+              </div>
+
+              <!-- Hydratation -->
+              <div
+                class="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm dark:bg-surface-dark"
+              >
+                <div class="flex items-center gap-4">
+                  <div
+                    class="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-300"
+                  >
+                    <span class="material-symbols-outlined">water_drop</span>
+                  </div>
+                  <div class="flex flex-col">
+                    <span
+                      class="text-base font-bold text-text-main dark:text-white"
+                      >Hydratation</span
+                    >
+                    <span
+                      class="text-sm text-text-sub dark:text-text-subtle"
+                    >
+                      Au moins 1L dans la journée
+                    </span>
+                  </div>
+                </div>
+                <div
+                  class="flex items-center gap-2 text-xs font-medium text-text-sub dark:text-text-subtle"
+                >
+                  <span id="detail-hydration-status">Non renseigné</span>
+                </div>
+              </div>
+
+              <!-- Repas -->
+              <div
+                class="flex items-center justify-between rounded-xl bg-white p-4 shadow-sm dark:bg-surface-dark"
+              >
+                <div class="flex items-center gap-4">
+                  <div
+                    class="flex h-12 w-12 items-center justify-center rounded-full bg-orange-50 text-orange-500 dark:bg-orange-900/30 dark:text-orange-300"
+                  >
+                    <span class="material-symbols-outlined">restaurant</span>
+                  </div>
+                  <div class="flex flex-col">
+                    <span
+                      class="text-base font-bold text-text-main dark:text-white"
+                      >Repas</span
+                    >
+                    <span
+                      id="detail-meals-text"
+                      class="text-sm text-text-sub dark:text-text-subtle"
+                      >Non renseigné</span
+                    >
+                  </div>
+                </div>
+                <div
+                  id="detail-meals-status"
+                  class="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+                >
+                  <span class="material-symbols-outlined text-lg font-bold"
+                    >check</span
+                  >
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Symptômes -->
+          <section class="mt-6 flex flex-col gap-3 px-4">
+            <h3
+              class="ml-1 text-lg font-bold leading-tight tracking-tight text-text-main dark:text-white"
+            >
+              Symptômes ressentis
+            </h3>
+            <div id="detail-symptoms" class="flex flex-wrap gap-2">
+              <!-- Chips symptômes générés en JS -->
+            </div>
+          </section>
+
+          <!-- Notes -->
+          <section class="mt-6 flex flex-col gap-3 px-4 pb-4">
+            <h3
+              class="ml-1 text-lg font-bold leading-tight tracking-tight text-text-main dark:text-white"
+            >
+              Notes du jour
+            </h3>
+            <div
+              class="relative overflow-hidden rounded-2xl bg-[#fffef0] p-6 shadow-sm dark:bg-[#3d3830]"
+            >
+              <div
+                class="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
+                style="
+                  background-image: repeating-linear-gradient(
+                    transparent,
+                    transparent 31px,
+                    #000 31px,
+                    #000 32px
+                  );
+                "
+              ></div>
+              <p
+                id="detail-notes"
+                class="relative z-10 text-base leading-relaxed text-text-main/90 dark:text-white/90"
+              >
+                Aucune note enregistrée pour ce jour.
+              </p>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <!-- Overlay de modification d'une journée de l'historique -->
+      <div
+        id="edit-overlay"
+        class="fixed inset-0 z-50 hidden bg-background-light/95 dark:bg-background-dark/95"
+      >
+        <div
+          class="relative mx-auto flex h-full min-h-screen w-full max-w-md flex-col overflow-x-hidden bg-background-light dark:bg-background-dark pb-4 shadow-2xl"
+        >
+          <header
+            class="sticky top-0 z-20 flex items-center justify-between bg-background-light/90 px-4 py-4 backdrop-blur-md dark:bg-background-dark/90"
+          >
+            <button
+              id="edit-cancel"
+              type="button"
+              class="rounded-full px-3 py-2 text-sm font-medium text-text-sub dark:text-text-subtle hover:bg-surface-light dark:hover:bg-surface-dark active:opacity-70"
+            >
+              Annuler
+            </button>
+            <h2
+              id="edit-title"
+              class="text-center text-lg font-bold leading-tight tracking-tight"
+            >
+              Modifier la journée
+            </h2>
+            <button
+              id="edit-save"
+              type="button"
+              class="rounded-full bg-primary px-5 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-red-600 active:scale-95 shadow-primary/30"
+            >
+              Enregistrer
+            </button>
+          </header>
+
+          <form id="edit-form" class="flex flex-col gap-6 mt-2 px-4 pb-4">
+            <!-- Poids / tension -->
+            <section>
+              <div class="grid grid-cols-2 gap-4">
+                <div
+                  class="flex flex-col gap-2 rounded-2xl bg-white p-5 shadow-sm dark:bg-surface-dark"
+                >
+                  <div class="flex items-center gap-2 text-primary">
+                    <span class="material-symbols-outlined">monitor_weight</span>
+                    <label
+                      for="edit-weight"
+                      class="text-sm font-bold uppercase tracking-wider opacity-80"
+                      >Poids</label
+                    >
+                  </div>
+                  <div class="relative flex items-center">
+                    <input
+                      id="edit-weight"
+                      type="number"
+                      step="0.1"
+                      class="w-full rounded-xl border-0 bg-background-light px-3 py-2 text-2xl font-bold text-text-main focus:ring-2 focus:ring-primary dark:bg-background-dark dark:text-white"
+                    />
+                    <span
+                      class="absolute right-3 text-sm font-medium text-text-sub dark:text-text-subtle"
+                      >kg</span
+                    >
+                  </div>
+                </div>
+
+                <div
+                  class="flex flex-col gap-2 rounded-2xl bg-white p-5 shadow-sm dark:bg-surface-dark"
+                >
+                  <div class="flex items-center gap-2 text-primary">
+                    <span class="material-symbols-outlined">favorite</span>
+                    <span
+                      class="text-sm font-bold uppercase tracking-wider opacity-80"
+                      >Tension</span
+                    >
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <input
+                      id="edit-bp-sys"
+                      type="number"
+                      class="w-full rounded-xl border-0 bg-background-light px-2 py-2 text-center text-xl font-bold text-text-main focus:ring-2 focus:ring-primary dark:bg-background-dark dark:text-white"
+                      placeholder="Sys"
+                    />
+                    <span class="text-text-sub">/</span>
+                    <input
+                      id="edit-bp-dia"
+                      type="number"
+                      class="w-full rounded-xl border-0 bg-background-light px-2 py-2 text-center text-xl font-bold text-text-main focus:ring-2 focus:ring-primary dark:bg-background-dark dark:text-white"
+                      placeholder="Dia"
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Hydratation -->
+            <section class="flex flex-col gap-3 mt-2">
+              <h3
+                class="ml-1 text-lg font-bold leading-tight tracking-tight text-text-main dark:text-white"
+              >
+                Hydratation
+              </h3>
+              <div
+                class="flex items-center justify-between rounded-2xl bg-white p-4 shadow-sm dark:bg-surface-dark"
+              >
+                <div class="flex items-center gap-3">
+                  <div
+                    class="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-300"
+                  >
+                    <span class="material-symbols-outlined">water_drop</span>
+                  </div>
+                  <div class="flex flex-col">
+                    <span
+                      class="text-base font-bold text-text-main dark:text-white"
+                      >Eau bue</span
+                    >
+                    <span
+                      class="text-xs text-text-sub dark:text-text-subtle"
+                      >Au moins 1L dans la journée</span
+                    >
+                  </div>
+                </div>
+                <label class="relative inline-flex cursor-pointer items-center">
+                  <input id="edit-drank1L" type="checkbox" class="peer sr-only" />
+                  <div
+                    class="peer h-7 w-12 rounded-full bg-gray-200 after:absolute after:left-[2px] after:top-[2px] after:h-6 after:w-6 after:rounded-full after:border after:border-gray-300 after:bg-white after:transition-all after:content-[''] peer-checked:bg-green-500 peer-checked:after:translate-x-full peer-checked:after:border-white peer-focus:outline-none dark:border-gray-600 dark:bg-gray-700"
+                  ></div>
+                </label>
+              </div>
+            </section>
+
+            <!-- Habitudes: Médicaments et Repas -->
+            <section class="flex flex-col gap-3 mt-2">
+              <h3
+                class="ml-1 text-lg font-bold leading-tight tracking-tight text-text-main dark:text-white"
+              >
+                Habitudes
+              </h3>
+              <div class="flex flex-col gap-3">
+                <!-- Médicaments -->
+                <div
+                  class="flex flex-col gap-3 rounded-xl bg-white p-4 shadow-sm dark:bg-surface-dark"
+                >
+                  <div class="flex items-center gap-3">
+                    <div
+                      class="flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-500 dark:bg-red-900/30 dark:text-red-300"
+                    >
+                      <span class="material-symbols-outlined">medication</span>
+                    </div>
+                    <div class="flex flex-col">
+                      <span class="text-base font-bold text-text-main dark:text-white"
+                        >Médicaments</span
+                      >
+                      <span class="text-xs text-text-sub dark:text-text-subtle"
+                        >Matin, midi, soir</span
+                      >
+                    </div>
+                  </div>
+                  <div class="flex gap-2">
+                    <label class="cursor-pointer">
+                      <input id="edit-medsMorning" type="checkbox" class="peer sr-only" />
+                      <span
+                        class="inline-block px-3 py-1 rounded-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg"
+                        >Matin</span
+                      >
+                    </label>
+                    <label class="cursor-pointer">
+                      <input id="edit-medsNoon" type="checkbox" class="peer sr-only" />
+                      <span
+                        class="inline-block px-3 py-1 rounded-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg"
+                        >Midi</span
+                      >
+                    </label>
+                    <label class="cursor-pointer">
+                      <input id="edit-medsEvening" type="checkbox" class="peer sr-only" />
+                      <span
+                        class="inline-block px-3 py-1 rounded-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg"
+                        >Soir</span
+                      >
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Repas -->
+                <div
+                  class="flex flex-col gap-3 rounded-xl bg-white p-4 shadow-sm dark:bg-surface-dark"
+                >
+                  <div class="flex items-center gap-3">
+                    <div
+                      class="flex h-10 w-10 items-center justify-center rounded-full bg-orange-50 text-orange-500 dark:bg-orange-900/30 dark:text-orange-300"
+                    >
+                      <span class="material-symbols-outlined">restaurant</span>
+                    </div>
+                    <div class="flex flex-col">
+                      <span class="text-base font-bold text-text-main dark:text-white"
+                        >Repas</span
+                      >
+                      <span class="text-xs text-text-sub dark:text-text-subtle"
+                        >Petit déj, déjeuner, dîner</span
+                      >
+                    </div>
+                  </div>
+                  <div class="flex gap-2">
+                    <label class="cursor-pointer">
+                      <input id="edit-mealBreakfast" type="checkbox" class="peer sr-only" />
+                      <span
+                        class="inline-block px-3 py-1 rounded-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg"
+                        >Petit déj</span
+                      >
+                    </label>
+                    <label class="cursor-pointer">
+                      <input id="edit-mealLunch" type="checkbox" class="peer sr-only" />
+                      <span
+                        class="inline-block px-3 py-1 rounded-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg"
+                        >Déjeuner</span
+                      >
+                    </label>
+                    <label class="cursor-pointer">
+                      <input id="edit-mealDinner" type="checkbox" class="peer sr-only" />
+                      <span
+                        class="inline-block px-3 py-1 rounded-full bg-white dark:bg-surface-dark border border-gray-200 dark:border-gray-700 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg"
+                        >Dîner</span
+                      >
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- Symptômes -->
+            <section class="flex flex-col gap-3">
+              <h3
+                class="ml-1 text-lg font-bold leading-tight tracking-tight text-text-main dark:text-white"
+              >
+                Symptômes
+              </h3>
+              <div class="flex flex-wrap gap-2">
+                <label class="group relative cursor-pointer">
+                  <input
+                    id="edit-fatigue"
+                    type="checkbox"
+                    class="peer sr-only"
+                  />
+                  <span
+                    class="inline-flex select-none items-center rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-text-sub shadow-sm transition-colors peer-checked:border-primary peer-checked:bg-primary peer-checked:text-white dark:border-surface-dark dark:bg-surface-dark dark:text-text-subtle dark:peer-checked:bg-primary dark:peer-checked:text-white"
+                  >
+                    <span
+                      class="material-symbols-outlined mr-1.5 text-[18px]"
+                      >bolt</span
+                    >
+                    Fatigue
+                  </span>
+                </label>
+                <label class="group relative cursor-pointer">
+                  <input
+                    id="edit-breathless"
+                    type="checkbox"
+                    class="peer sr-only"
+                  />
+                  <span
+                    class="inline-flex select-none items-center rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-text-sub shadow-sm transition-colors peer-checked:border-primary peer-checked:bg-primary peer-checked:text-white dark:border-surface-dark dark:bg-surface-dark dark:text-text-subtle dark:peer-checked:bg-primary dark:peer-checked:text-white"
+                  >
+                    <span
+                      class="material-symbols-outlined mr-1.5 text-[18px]"
+                      >air</span
+                    >
+                    Essoufflée
+                  </span>
+                </label>
+              </div>
+            </section>
+
+            <!-- Notes -->
+            <section class="flex flex-col gap-3">
+              <h3
+                class="ml-1 text-lg font-bold leading-tight tracking-tight text-text-main dark:text-white"
+              >
+                Notes du jour
+              </h3>
+              <div
+                class="relative overflow-hidden rounded-2xl bg-[#fffef0] shadow-sm dark:bg-[#3d3830]"
+              >
+                <div
+                  class="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.05]"
+                  style="
+                    background-image: repeating-linear-gradient(
+                      transparent,
+                      transparent 31px,
+                      #000 31px,
+                      #000 32px
+                    );
+                  "
+                ></div>
+                <textarea
+                  id="edit-notes"
+                  rows="5"
+                  class="relative z-10 w-full resize-none border-0 bg-transparent px-6 py-6 text-base leading-relaxed text-text-main/90 focus:ring-0 dark:text-white/90"
+                  placeholder="Comment tu te sentais ce jour-là ?"
+                ></textarea>
+                <div
+
+      <!-- Bouton flottant Journée terminée (fixé en bas, centré) -->
+      <div
+        id="floating-submit"
+        class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md p-6 pt-0 bg-gradient-to-t from-background-light via-background-light to-transparent dark:from-background-dark dark:via-background-dark pointer-events-none z-40 h-28 flex items-end justify-center"
+      >
+        <button
+          class="pointer-events-auto w-full max-w-sm bg-primary hover:bg-red-600 text-white font-bold py-4 px-6 rounded-full shadow-[0_10px_30px_rgba(238,43,91,0.4)] transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+          type="submit"
+          form="today-form"
+        >
+          <span>Journée terminée</span>
+          <span class="text-lg">✨</span>
+        </button>
+      </div>
+
+      <div id="toast" class="toast hidden"></div>
+    </div>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
