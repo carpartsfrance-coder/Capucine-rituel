@@ -1,8 +1,8 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -42,6 +42,7 @@ const entrySchema = new mongoose.Schema(
     mood: Number,
     fatigue: Boolean,
     breathless: Boolean,
+    sleepQuality: String,
     notes: String,
     // Index de la pensée du jour (dans DAILY_QUOTES côté front)
     quoteIndex: Number,
@@ -99,6 +100,7 @@ app.post('/entries', async (req, res) => {
       mood: data.mood ?? null,
       fatigue: !!data.fatigue,
       breathless: !!data.breathless,
+      sleepQuality: data.sleepQuality || null,
       notes: data.notes || '',
       quoteIndex:
         typeof data.quoteIndex === 'number' && !Number.isNaN(data.quoteIndex)

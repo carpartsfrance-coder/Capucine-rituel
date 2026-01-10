@@ -436,6 +436,7 @@
     const symptomsEl = document.getElementById('detail-symptoms');
     const notesEl = document.getElementById('detail-notes');
     const hydrationStatusEl = document.getElementById('detail-hydration-status');
+    const sleepTextEl = document.getElementById('detail-sleep-text');
 
     if (titleEl) {
       titleEl.textContent = formatDateHuman(entry.date);
@@ -508,6 +509,18 @@
       hydrationStatusEl.textContent = entry.drank1L
         ? 'Objectif atteint'
         : 'Pas renseigné';
+    }
+
+    if (sleepTextEl) {
+      let text = 'Non renseigné';
+      if (entry.sleepQuality === 'oui') {
+        text = 'Bien dormi';
+      } else if (entry.sleepQuality === 'non') {
+        text = 'Mal dormi';
+      } else if (entry.sleepQuality === 'cauchemar') {
+        text = 'Cauchemar';
+      }
+      sleepTextEl.textContent = text;
     }
 
     if (symptomsEl) {
@@ -708,9 +721,27 @@
       }
       const data = await response.json();
       if (Array.isArray(data)) {
+        // On fusionne avec les valeurs locales pour conserver d'éventuels champs
+        // que le backend ne renverrait pas encore (comme sleepQuality)
+        const localEntries = loadEntries();
+        const sleepByDate = {};
+        localEntries.forEach((e) => {
+          if (e && e.date && e.sleepQuality != null) {
+            sleepByDate[e.date] = e.sleepQuality;
+          }
+        });
+        const merged = data.map((e) => {
+          const sleepQuality =
+            e.sleepQuality != null
+              ? e.sleepQuality
+              : Object.prototype.hasOwnProperty.call(sleepByDate, e.date)
+                ? sleepByDate[e.date]
+                : null;
+          return { ...e, sleepQuality };
+        });
         // On garde aussi une copie locale en secours
-        saveEntries(data);
-        return data;
+        saveEntries(merged);
+        return merged;
       }
       return loadEntries();
     } catch (e) {
@@ -734,12 +765,22 @@
       }
 
       const saved = await response.json();
+      // On s'assure de conserver la valeur de sommeil saisie côté front
+      const mergedSaved = {
+        ...saved,
+        sleepQuality:
+          entry.sleepQuality != null
+            ? entry.sleepQuality
+            : saved.sleepQuality != null
+              ? saved.sleepQuality
+              : null,
+      };
       const entries = loadEntries();
-      const index = entries.findIndex((e) => e.date === saved.date);
+      const index = entries.findIndex((e) => e.date === mergedSaved.date);
       if (index >= 0) {
-        entries[index] = saved;
+        entries[index] = { ...entries[index], ...mergedSaved };
       } else {
-        entries.push(saved);
+        entries.push(mergedSaved);
       }
       saveEntries(entries);
       return entries;
@@ -894,6 +935,19 @@
 
     document.getElementById('fatigue').checked = !!entry.fatigue;
     document.getElementById('breathless').checked = !!entry.breathless;
+
+    const sleepValues =
+      entry.sleepQuality && typeof entry.sleepQuality === 'string'
+        ? entry.sleepQuality.split(',').map((s) => s.trim()).filter(Boolean)
+        : [];
+    const hasSleep = (value) => sleepValues.includes(value);
+    const sleepYes = document.getElementById('sleep-yes');
+    const sleepNo = document.getElementById('sleep-no');
+    const sleepNightmare = document.getElementById('sleep-nightmare');
+    if (sleepYes) sleepYes.checked = hasSleep('oui');
+    if (sleepNo) sleepNo.checked = hasSleep('non');
+    if (sleepNightmare) sleepNightmare.checked = hasSleep('cauchemar');
+
     document.getElementById('notes').value = entry.notes || '';
 
     const moodValueInput = document.getElementById('moodValue');
@@ -927,6 +981,15 @@
     const moodValueInput = document.getElementById('moodValue');
     const mood = moodValueInput.value ? Number(moodValueInput.value) : null;
 
+    const sleepYes = document.getElementById('sleep-yes');
+    const sleepNo = document.getElementById('sleep-no');
+    const sleepNightmare = document.getElementById('sleep-nightmare');
+    const sleepValues = [];
+    if (sleepYes && sleepYes.checked) sleepValues.push('oui');
+    if (sleepNo && sleepNo.checked) sleepValues.push('non');
+    if (sleepNightmare && sleepNightmare.checked) sleepValues.push('cauchemar');
+    const sleepQuality = sleepValues.length ? sleepValues.join(',') : null;
+
     const fatigue = document.getElementById('fatigue').checked;
     const breathless = document.getElementById('breathless').checked;
     const notes = document.getElementById('notes').value.trim();
@@ -948,6 +1011,7 @@
       bpSystolic,
       bpDiastolic,
       mood,
+      sleepQuality,
       fatigue,
       breathless,
       notes,
@@ -1243,6 +1307,7 @@
       showToast("Pas encore de journée à exporter.");
       return;
     }
+
     const sorted = entries
       .slice()
       .sort((a, b) => (a.date < b.date ? -1 : 1));
@@ -1281,6 +1346,21 @@
         ]
           .filter(Boolean)
           .join(', ') || 'Aucun';
+
+        const sleepLabelsMap = {
+          oui: 'Bien dormi',
+          non: 'Mal dormi',
+          cauchemar: 'Cauchemar',
+        };
+        const sleepValues =
+          e.sleepQuality && typeof e.sleepQuality === 'string'
+            ? e.sleepQuality.split(',').map((s) => s.trim()).filter(Boolean)
+            : [];
+        const sleepLabels = sleepValues
+          .map((v) => sleepLabelsMap[v] || v)
+          .filter((v, idx, arr) => v && arr.indexOf(v) === idx);
+        const sleep = sleepLabels.length ? sleepLabels.join(', ') : 'Non renseigné';
+
         const notes =
           e.notes && e.notes.trim()
             ? e.notes
@@ -1297,6 +1377,7 @@
             <td>${bp}</td>
             <td>${mood}</td>
             <td>${buildBool(e.drank1L)}</td>
+            <td>${sleep}</td>
             <td>${meds}</td>
             <td>${meals}</td>
             <td>${symptoms}</td>
@@ -1377,6 +1458,7 @@
                 <th>Tension</th>
                 <th>Humeur</th>
                 <th>Hydratation (≥1L)</th>
+                <th>Sommeil</th>
                 <th>Médicaments</th>
                 <th>Repas</th>
                 <th>Symptômes</th>
