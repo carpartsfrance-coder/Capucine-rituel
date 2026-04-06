@@ -279,12 +279,16 @@ app.post('/kiss', requireToken, async (req, res) => {
       (req.body && typeof req.body.message === 'string'
         ? req.body.message.slice(0, 200)
         : null) || 'Capucine te souhaite bonne nuit 💋';
+    // Les en-têtes HTTP n'autorisent que de l'ASCII/Latin-1 : pas d'emoji
+    // dans Title (provoque "Cannot convert argument to a ByteString").
+    // L'emoji visuel est ajouté via le header Tags (codes ntfy) et dans
+    // le body, pas dans Title.
     const r = await fetch(url, {
       method: 'POST',
       headers: {
-        Title: 'Bisou de Capucine 💌',
+        Title: 'Bisou de Capucine',
         Priority: 'default',
-        Tags: 'kiss,heart',
+        Tags: 'kissing_heart,heart',
       },
       body: message,
     });
