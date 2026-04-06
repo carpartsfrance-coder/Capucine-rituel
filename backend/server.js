@@ -319,11 +319,11 @@ function buildReplyActions(token) {
   const t = encodeURIComponent(token || '');
   const mk = (type, label) =>
     `http, ${label}, ${base}/reply?type=${type}&t=${t}, method=POST, clear=true`;
+  // ntfy limite à 3 action buttons par notification
   return [
     mk('love', 'Je t\'aime'),
     mk('hug', 'Calin'),
     mk('call', 'J\'appelle'),
-    mk('coming', 'J\'arrive'),
   ].join('; ');
 }
 
