@@ -11,144 +11,6 @@
     'mealDinner',
   ];
 
-  const SUCCESS_ORDER_KEY = 'capucine_success_images_order';
-
-  function loadSuccessOrder() {
-    try {
-      const raw = localStorage.getItem(SUCCESS_ORDER_KEY);
-      const parsed = raw ? JSON.parse(raw) : null;
-      return Array.isArray(parsed) ? parsed : null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  async function shareVictoryForEntry(entry) {
-    if (!entry) return;
-    const dateHuman = formatDateHuman(entry.date);
-    const mood = entry.mood ? getMoodEmoji(entry.mood) : '🙂';
-
-    const meds = [entry.medsMorning && 'matin', entry.medsNoon && 'midi', entry.medsEvening && 'soir']
-      .filter(Boolean)
-      .join(', ');
-    const meals = [entry.mealBreakfast && 'petit déj', entry.mealLunch && 'déjeuner', entry.mealDinner && 'dîner']
-      .filter(Boolean)
-      .join(', ');
-
-    const weight = entry.weightKg != null ? `${entry.weightKg} kg` : '--';
-    const bp = entry.bpSystolic != null && entry.bpDiastolic != null ? `${entry.bpSystolic}/${entry.bpDiastolic}` : '--';
-
-    const lines = [
-      `Rituel de Capucine – ${dateHuman}`,
-      `Humeur: ${mood}`,
-      `Hydratation: ${entry.drank1L ? '✅' : '—'}`,
-      `Médicaments: ${meds || '—'}`,
-      `Repas: ${meals || '—'}`,
-      `Poids: ${weight}  |  Tension: ${bp}`,
-    ];
-    if (entry.notes && entry.notes.trim()) {
-      lines.push(`Notes: ${entry.notes.trim()}`);
-    }
-    // Lien direct vers l'app sur la journée partagée
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', 'history');
-      url.searchParams.set('date', entry.date);
-      lines.push('', `Voir cette journée dans son rituel : ${url.toString()}`);
-    } catch (_) {
-      // en cas d'erreur d'URL, on ignore simplement
-    }
-    lines.push('— partagé depuis son petit rituel ✨');
-
-    const text = lines.join('\n');
-
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: 'Rituel de Capucine', text });
-        return;
-      }
-    } catch (_) {}
-
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        showToast('Message copié. Tu peux le coller dans Messages/WhatsApp.');
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        showToast('Message copié. Tu peux le coller dans Messages/WhatsApp.');
-      }
-    } catch (_) {
-      showToast("Impossible de partager automatiquement. Copie manuelle nécessaire.");
-    }
-  }
-
-  function saveSuccessOrder(order) {
-    try {
-      localStorage.setItem(SUCCESS_ORDER_KEY, JSON.stringify(order));
-    } catch (_) {
-      // ignore
-    }
-  }
-
-  function generateSuccessOrder(n) {
-    const arr = Array.from({ length: n }, (_, i) => i);
-    for (let i = n - 1; i > 0; i -= 1) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const tmp = arr[i];
-      arr[i] = arr[j];
-      arr[j] = tmp;
-    }
-    return arr;
-  }
-
-  function getSuccessImageForCount(totalDays) {
-    if (!SUCCESS_IMAGES.length || totalDays <= 0) {
-      return 'assets/turtle-enceinte.png';
-    }
-
-    let order = loadSuccessOrder();
-    if (!order || order.length !== SUCCESS_IMAGES.length) {
-      order = generateSuccessOrder(SUCCESS_IMAGES.length);
-      saveSuccessOrder(order);
-    }
-
-    let pos = (totalDays - 1) % SUCCESS_IMAGES.length;
-    // Au début d'un nouveau cycle (et seulement si on a déjà complété au moins un cycle), on régénère l'ordre
-    if (pos === 0 && totalDays > 1) {
-      order = generateSuccessOrder(SUCCESS_IMAGES.length);
-      saveSuccessOrder(order);
-      pos = 0;
-    }
-
-    const idx = order[pos];
-    return SUCCESS_IMAGES[idx] || 'assets/turtle-enceinte.png';
-  }
-
-  const SUCCESS_DATE_MAP_KEY = 'capucine_success_images_by_date';
-
-  function loadSuccessDateMap() {
-    try {
-      const raw = localStorage.getItem(SUCCESS_DATE_MAP_KEY);
-      const parsed = raw ? JSON.parse(raw) : null;
-      return parsed && typeof parsed === 'object' ? parsed : {};
-    } catch (_) {
-      return {};
-    }
-  }
-
-  function saveSuccessDateMap(map) {
-    try {
-      localStorage.setItem(SUCCESS_DATE_MAP_KEY, JSON.stringify(map));
-    } catch (_) {
-      // ignore
-    }
-  }
-
   function getSuccessImageForDate(dateKey) {
     if (!SUCCESS_IMAGES.length) {
       return 'assets/turtle-enceinte.png';
@@ -403,6 +265,214 @@
   // Base API dynamique: en prod et en local, on utilise la même origine
   const API_BASE_URL = '';
 
+  // --- Token d'API (optionnel) ---------------------------------------------
+  // Si le backend a CAPUCINE_TOKEN défini, on doit envoyer le token avec
+  // chaque requête. On le stocke en localStorage. Pour le configurer, ouvrir
+  // l'app une fois avec `#token=VALEUR` dans l'URL : la valeur est extraite,
+  // sauvegardée, puis le hash est nettoyé pour ne pas rester visible.
+  const TOKEN_KEY = 'capucine_api_token';
+  function captureTokenFromHash() {
+    try {
+      if (window.location.hash && window.location.hash.startsWith('#')) {
+        const params = new URLSearchParams(window.location.hash.slice(1));
+        const t = params.get('token');
+        if (t) {
+          localStorage.setItem(TOKEN_KEY, t);
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
+    } catch (_) {}
+  }
+  function getApiToken() {
+    try {
+      return localStorage.getItem(TOKEN_KEY) || null;
+    } catch (_) {
+      return null;
+    }
+  }
+  function authHeaders() {
+    const t = getApiToken();
+    return t ? { Authorization: `Bearer ${t}` } : {};
+  }
+
+  // --- Debounce -------------------------------------------------------------
+  function debounce(fn, ms) {
+    let timer = null;
+    const debounced = function (...args) {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        fn.apply(this, args);
+      }, ms);
+    };
+    debounced.cancel = () => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+    };
+    debounced.flush = function (...args) {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      fn.apply(this, args);
+    };
+    return debounced;
+  }
+
+  // --- File de réessai hors-ligne ------------------------------------------
+  // Si l'envoi au backend échoue, on garde l'entrée en attente et on retente
+  // au prochain succès, au focus de la page, ou quand `online` se déclenche.
+  const PENDING_KEY = 'capucine_pending_entries';
+  function loadPending() {
+    try {
+      const raw = localStorage.getItem(PENDING_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch (_) {
+      return {};
+    }
+  }
+  function savePending(map) {
+    try {
+      localStorage.setItem(PENDING_KEY, JSON.stringify(map));
+    } catch (_) {}
+  }
+  function queuePending(entry) {
+    if (!entry || !entry.date) return;
+    const map = loadPending();
+    map[entry.date] = entry;
+    savePending(map);
+  }
+  function clearPending(date) {
+    const map = loadPending();
+    if (date in map) {
+      delete map[date];
+      savePending(map);
+    }
+  }
+  let flushingPending = false;
+  async function flushPendingEntries() {
+    if (flushingPending) return;
+    flushingPending = true;
+    try {
+      const map = loadPending();
+      const dates = Object.keys(map);
+      for (const d of dates) {
+        try {
+          const res = await fetch(`${API_BASE_URL}/entries`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify(map[d]),
+          });
+          if (res.ok) {
+            clearPending(d);
+          }
+        } catch (_) {
+          // on s'arrête, on retentera plus tard
+          break;
+        }
+      }
+    } finally {
+      flushingPending = false;
+    }
+  }
+
+  // --- Formatters partagés -------------------------------------------------
+  function formatMedsList(entry) {
+    return [
+      entry.medsMorning && 'matin',
+      entry.medsNoon && 'midi',
+      entry.medsEvening && 'soir',
+    ]
+      .filter(Boolean)
+      .join(', ');
+  }
+  function formatMealsList(entry) {
+    return [
+      entry.mealBreakfast && 'petit déj',
+      entry.mealLunch && 'déjeuner',
+      entry.mealDinner && 'dîner',
+    ]
+      .filter(Boolean)
+      .join(', ');
+  }
+  const SLEEP_LABELS = { oui: 'Bien dormi', non: 'Mal dormi', cauchemar: 'Cauchemar' };
+  function parseSleepValues(value) {
+    if (!value || typeof value !== 'string') return [];
+    return value
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s in SLEEP_LABELS);
+  }
+  function formatSleepLabel(value) {
+    const vals = parseSleepValues(value);
+    if (!vals.length) return 'Non renseigné';
+    const seen = new Set();
+    return vals
+      .map((v) => SLEEP_LABELS[v])
+      .filter((l) => {
+        if (seen.has(l)) return false;
+        seen.add(l);
+        return true;
+      })
+      .join(', ');
+  }
+  function formatWeight(entry) {
+    return entry.weightKg != null ? `${entry.weightKg} kg` : '--';
+  }
+  function formatBp(entry) {
+    return entry.bpSystolic != null && entry.bpDiastolic != null
+      ? `${entry.bpSystolic}/${entry.bpDiastolic}`
+      : '--';
+  }
+  function buildShareText(entry) {
+    const dateHuman = formatDateHuman(entry.date);
+    const mood = entry.mood ? getMoodEmoji(entry.mood) : '🙂';
+    const meds = formatMedsList(entry);
+    const meals = formatMealsList(entry);
+    const lines = [
+      `Rituel de Capucine – ${dateHuman}`,
+      `Humeur: ${mood}`,
+      `Hydratation: ${entry.drank1L ? '✅' : '—'}`,
+      `Médicaments: ${meds || '—'}`,
+      `Repas: ${meals || '—'}`,
+      `Poids: ${formatWeight(entry)}  |  Tension: ${formatBp(entry)}`,
+    ];
+    if (entry.notes && entry.notes.trim()) {
+      lines.push(`Notes: ${entry.notes.trim()}`);
+    }
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', 'history');
+      url.searchParams.set('date', entry.date);
+      lines.push('', `Voir cette journée dans son rituel : ${url.toString()}`);
+    } catch (_) {}
+    lines.push('— partagé depuis son petit rituel ✨');
+    return lines.join('\n');
+  }
+  async function shareTextWithFallback(text) {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: 'Rituel de Capucine', text });
+        return;
+      }
+    } catch (_) {}
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        showToast('Message copié. Tu peux le coller dans Messages/WhatsApp.');
+        return;
+      }
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('Message copié. Tu peux le coller dans Messages/WhatsApp.');
+    } catch (_) {
+      showToast("Impossible de partager automatiquement. Copie manuelle nécessaire.");
+    }
+  }
+
   function formatDate(date) {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -470,39 +540,20 @@
     }
 
     if (medsTextEl || medsStatusEl) {
-      const times = [];
-      if (entry.medsMorning) times.push('matin');
-      if (entry.medsNoon) times.push('midi');
-      if (entry.medsEvening) times.push('soir');
-      const text = times.length
-        ? `Pris : ${times.join(', ')}`
-        : 'Aucune prise renseignée';
+      const medsStr = formatMedsList(entry);
+      const text = medsStr ? `Pris : ${medsStr}` : 'Aucune prise renseignée';
       if (medsTextEl) medsTextEl.textContent = text;
-      if (medsStatusEl) {
-        if (times.length) {
-          medsStatusEl.classList.remove('opacity-40');
-        } else {
-          medsStatusEl.classList.add('opacity-40');
-        }
-      }
+      if (medsStatusEl) medsStatusEl.classList.toggle('opacity-40', !medsStr);
     }
 
     if (mealsTextEl || mealsStatusEl) {
-      const meals = [];
-      if (entry.mealBreakfast) meals.push('petit déj');
-      if (entry.mealLunch) meals.push('déjeuner');
-      if (entry.mealDinner) meals.push('dîner');
-      const textMeals = meals.length
-        ? `${meals.length} repas enregistrés (${meals.join(', ')})`
+      const mealsStr = formatMealsList(entry);
+      const count = mealsStr ? mealsStr.split(',').length : 0;
+      const textMeals = count
+        ? `${count} repas enregistrés (${mealsStr})`
         : 'Aucun repas renseigné';
       if (mealsTextEl) mealsTextEl.textContent = textMeals;
-      if (mealsStatusEl) {
-        if (meals.length) {
-          mealsStatusEl.classList.remove('opacity-40');
-        } else {
-          mealsStatusEl.classList.add('opacity-40');
-        }
-      }
+      if (mealsStatusEl) mealsStatusEl.classList.toggle('opacity-40', !count);
     }
 
     if (hydrationStatusEl) {
@@ -512,15 +563,7 @@
     }
 
     if (sleepTextEl) {
-      let text = 'Non renseigné';
-      if (entry.sleepQuality === 'oui') {
-        text = 'Bien dormi';
-      } else if (entry.sleepQuality === 'non') {
-        text = 'Mal dormi';
-      } else if (entry.sleepQuality === 'cauchemar') {
-        text = 'Cauchemar';
-      }
-      sleepTextEl.textContent = text;
+      sleepTextEl.textContent = formatSleepLabel(entry.sleepQuality);
     }
 
     if (symptomsEl) {
@@ -565,80 +608,16 @@
   }
 
   async function shareVictory() {
-    // Récupère l'entrée du jour (ou la plus récente en secours)
     const all = loadEntries();
     if (!all.length) {
       showToast("Aucune journée à partager pour l'instant.");
       return;
     }
     const todayKey = formatDate(new Date());
-    const entry = all.find((e) => e.date === todayKey) || [...all].sort((a, b) => (a.date < b.date ? 1 : -1))[0];
-
-    // Construit un message simple et bien lisible
-    const dateHuman = formatDateHuman(entry.date);
-    const mood = entry.mood ? getMoodEmoji(entry.mood) : '🙂';
-
-    const meds = [entry.medsMorning && 'matin', entry.medsNoon && 'midi', entry.medsEvening && 'soir']
-      .filter(Boolean)
-      .join(', ');
-    const meals = [entry.mealBreakfast && 'petit déj', entry.mealLunch && 'déjeuner', entry.mealDinner && 'dîner']
-      .filter(Boolean)
-      .join(', ');
-
-    const weight = entry.weightKg != null ? `${entry.weightKg} kg` : '--';
-    const bp = entry.bpSystolic != null && entry.bpDiastolic != null ? `${entry.bpSystolic}/${entry.bpDiastolic}` : '--';
-
-    const lines = [
-      `Rituel de Capucine – ${dateHuman}`,
-      `Humeur: ${mood}`,
-      `Hydratation: ${entry.drank1L ? '✅' : '—'}`,
-      `Médicaments: ${meds || '—'}`,
-      `Repas: ${meals || '—'}`,
-      `Poids: ${weight}  |  Tension: ${bp}`,
-    ];
-    if (entry.notes && entry.notes.trim()) {
-      lines.push(`Notes: ${entry.notes.trim()}`);
-    }
-    // Lien direct vers l'app sur la journée partagée
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', 'history');
-      url.searchParams.set('date', entry.date);
-      lines.push('', `Voir cette journée dans son rituel : ${url.toString()}`);
-    } catch (_) {
-      // en cas d'erreur d'URL, on ignore simplement
-    }
-    lines.push('— partagé depuis son petit rituel ✨');
-
-    const text = lines.join('\n');
-
-    // Partage natif si possible, sinon copie dans le presse‑papiers
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: 'Rituel de Capucine', text });
-        return;
-      }
-    } catch (err) {
-      // Si l'utilisateur annule, on ne fait rien de plus
-    }
-
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(text);
-        showToast('Message copié. Tu peux le coller dans Messages/WhatsApp.');
-      } else {
-        // Fallback ultime
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        showToast('Message copié. Tu peux le coller dans Messages/WhatsApp.');
-      }
-    } catch (e) {
-      showToast("Impossible de partager automatiquement. Copie manuelle nécessaire.");
-    }
+    const entry =
+      all.find((e) => e.date === todayKey) ||
+      [...all].sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+    await shareTextWithFallback(buildShareText(entry));
   }
 
   function parseDate(str) {
@@ -715,48 +694,34 @@
 
   async function fetchEntriesFromBackend() {
     try {
-      const response = await fetch(`${API_BASE_URL}/entries`);
+      const response = await fetch(`${API_BASE_URL}/entries`, {
+        headers: { ...authHeaders() },
+      });
       if (!response.ok) {
         throw new Error('Réponse HTTP non valide');
       }
       const data = await response.json();
       if (Array.isArray(data)) {
-        // On fusionne avec les valeurs locales pour conserver d'éventuels champs
-        // que le backend ne renverrait pas encore (comme sleepQuality)
-        const localEntries = loadEntries();
-        const sleepByDate = {};
-        localEntries.forEach((e) => {
-          if (e && e.date && e.sleepQuality != null) {
-            sleepByDate[e.date] = e.sleepQuality;
-          }
-        });
-        const merged = data.map((e) => {
-          const sleepQuality =
-            e.sleepQuality != null
-              ? e.sleepQuality
-              : Object.prototype.hasOwnProperty.call(sleepByDate, e.date)
-                ? sleepByDate[e.date]
-                : null;
-          return { ...e, sleepQuality };
-        });
-        // On garde aussi une copie locale en secours
-        saveEntries(merged);
-        return merged;
+        saveEntries(data);
+        // Tente de pousser les entrées en attente (best-effort)
+        flushPendingEntries();
+        return data;
       }
       return loadEntries();
     } catch (e) {
-      // Si le backend n'est pas joignable, on revient au stockage local
       return loadEntries();
     }
   }
 
   async function saveEntryToBackend(entry) {
+    // Toujours sauver en local d'abord pour éviter la perte si la requête
+    // échoue ou si une race se produit avec une autre sauvegarde.
+    const localEntries = upsertEntry(entry);
+
     try {
       const response = await fetch(`${API_BASE_URL}/entries`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify(entry),
       });
 
@@ -765,32 +730,23 @@
       }
 
       const saved = await response.json();
-      // On s'assure de conserver la valeur de sommeil saisie côté front
-      const mergedSaved = {
-        ...saved,
-        sleepQuality:
-          entry.sleepQuality != null
-            ? entry.sleepQuality
-            : saved.sleepQuality != null
-              ? saved.sleepQuality
-              : null,
-      };
       const entries = loadEntries();
-      const index = entries.findIndex((e) => e.date === mergedSaved.date);
+      const index = entries.findIndex((e) => e.date === saved.date);
       if (index >= 0) {
-        entries[index] = { ...entries[index], ...mergedSaved };
+        entries[index] = { ...entries[index], ...saved };
       } else {
-        entries.push(mergedSaved);
+        entries.push(saved);
       }
       saveEntries(entries);
+      clearPending(entry.date);
       return entries;
     } catch (e) {
-      // Secours : on garde quand même la journée en local
-      const updatedEntries = upsertEntry(entry);
+      // Secours : on met en file d'attente pour réessayer plus tard.
+      queuePending(entry);
       showToast(
-        "Impossible de se connecter au serveur. Ta journée est gardée sur cet appareil seulement."
+        'Pas de connexion : ta journée est gardée et sera renvoyée automatiquement.'
       );
-      return updatedEntries;
+      return localEntries;
     }
   }
 
@@ -1296,12 +1252,6 @@
     overlay.classList.remove('hidden');
   }
 
-  function toCsvValue(value) {
-    if (value === null || value === undefined) return '""';
-    const str = String(value).replace(/"/g, '""');
-    return `"${str}"`;
-  }
-
   function exportForDoctor(entries, existingWindow) {
     if (!entries.length) {
       showToast("Pas encore de journée à exporter.");
@@ -1326,40 +1276,13 @@
             ? `${e.bpSystolic}/${e.bpDiastolic} mmHg`
             : '—';
         const mood = e.mood != null ? `${e.mood}/5` : '—';
-        const meds = [
-          e.medsMorning && 'matin',
-          e.medsNoon && 'midi',
-          e.medsEvening && 'soir',
-        ]
-          .filter(Boolean)
-          .join(', ') || '—';
-        const meals = [
-          e.mealBreakfast && 'petit déj',
-          e.mealLunch && 'déjeuner',
-          e.mealDinner && 'dîner',
-        ]
-          .filter(Boolean)
-          .join(', ') || '—';
-        const symptoms = [
-          e.fatigue && 'Fatigue',
-          e.breathless && 'Essoufflée',
-        ]
-          .filter(Boolean)
-          .join(', ') || 'Aucun';
-
-        const sleepLabelsMap = {
-          oui: 'Bien dormi',
-          non: 'Mal dormi',
-          cauchemar: 'Cauchemar',
-        };
-        const sleepValues =
-          e.sleepQuality && typeof e.sleepQuality === 'string'
-            ? e.sleepQuality.split(',').map((s) => s.trim()).filter(Boolean)
-            : [];
-        const sleepLabels = sleepValues
-          .map((v) => sleepLabelsMap[v] || v)
-          .filter((v, idx, arr) => v && arr.indexOf(v) === idx);
-        const sleep = sleepLabels.length ? sleepLabels.join(', ') : 'Non renseigné';
+        const meds = formatMedsList(e) || '—';
+        const meals = formatMealsList(e) || '—';
+        const symptoms =
+          [e.fatigue && 'Fatigue', e.breathless && 'Essoufflée']
+            .filter(Boolean)
+            .join(', ') || 'Aucun';
+        const sleep = formatSleepLabel(e.sleepQuality);
 
         const notes =
           e.notes && e.notes.trim()
@@ -1502,14 +1425,19 @@
         moodValueInput.value = value;
         moodButtons.forEach((b) => b.classList.remove('selected'));
         btn.classList.add('selected');
-        saveTodayEntryFromForm({ showToast: false });
+        debouncedAutoSave();
       });
     });
   }
 
-  function setupAutoSaveForTodayForm() {
-    const autoSave = () => saveTodayEntryFromForm({ showToast: false });
+  // Auto-save partagée et debouncée pour éviter d'enchaîner plusieurs POST
+  // concurrents quand l'utilisatrice coche plusieurs cases d'affilée.
+  const debouncedAutoSave = debounce(
+    () => saveTodayEntryFromForm({ showToast: false }),
+    400
+  );
 
+  function setupAutoSaveForTodayForm() {
     const checkboxIds = [
       'drank1L',
       'medsMorning',
@@ -1525,7 +1453,7 @@
     checkboxIds.forEach((id) => {
       const el = document.getElementById(id);
       if (el) {
-        el.addEventListener('change', autoSave);
+        el.addEventListener('change', debouncedAutoSave);
       }
     });
 
@@ -1534,12 +1462,32 @@
     inputIds.forEach((id) => {
       const el = document.getElementById(id);
       if (el) {
-        el.addEventListener('change', autoSave);
+        el.addEventListener('change', debouncedAutoSave);
+        // Sur les inputs texte/nombre, déclenche aussi à chaque frappe.
+        el.addEventListener('input', debouncedAutoSave);
       }
     });
   }
 
+  async function safeInit() {
+    try {
+      await init();
+    } catch (err) {
+      console.error('Erreur init Rituel:', err);
+      showToast("Une erreur est survenue au démarrage. Recharge la page si besoin.");
+    }
+  }
+
   async function init() {
+    captureTokenFromHash();
+
+    // Tente de renvoyer les entrées en attente quand la connexion revient
+    // ou quand l'utilisatrice revient sur l'onglet.
+    window.addEventListener('online', flushPendingEntries);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') flushPendingEntries();
+    });
+
     const tabButtons = document.querySelectorAll('.tab-button');
     tabButtons.forEach((btn) => {
       btn.addEventListener('click', () => {
@@ -1806,8 +1754,8 @@
   }
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', safeInit);
   } else {
-    init();
+    safeInit();
   }
 })();
