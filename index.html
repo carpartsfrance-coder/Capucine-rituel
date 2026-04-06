@@ -94,6 +94,14 @@
       }
     </style>
 
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#ee2b5b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Capucine" />
+    <link rel="apple-touch-icon" href="/assets/turtle-enceinte.png" />
+
     <!-- CSS local existant (toast, historique, etc.) -->
     <link rel="stylesheet" href="style.css" />
   </head>
@@ -158,6 +166,14 @@
         <!-- Onglet Aujourd'hui -->
         <section id="tab-today" class="tab active">
           <form id="today-form" class="flex flex-col gap-8 pb-4">
+            <!-- Bandeau "soft day" -->
+            <div class="soft-day-banner">
+              <div class="soft-day-icon">🌸</div>
+              <div>
+                <h4>Aujourd'hui, prends soin de toi avant tout</h4>
+                <p>Pas d'objectif. Juste respirer, c'est déjà beaucoup. ❤️<br/><button type="button" id="soft-day-show-all" class="underline text-primary text-xs mt-1">Voir tout quand même</button></p>
+              </div>
+            </div>
             <!-- Bonjour + pensée du jour -->
             <div class="mt-2">
               <h1
@@ -317,16 +333,17 @@
                       >
                     </div>
                   </div>
-                  <div class="relative">
+                  <div class="relative flex items-center gap-3">
+                    <div id="water-glass" class="water-glass" role="button" aria-label="Marquer 1L bu" tabindex="0">
+                      <span class="water-bubble"></span>
+                      <span class="water-bubble"></span>
+                      <span class="water-bubble"></span>
+                    </div>
                     <input
                       id="drank1L"
                       type="checkbox"
-                      class="peer h-6 w-6 appearance-none rounded-full border-2 border-gray-300 checked:border-primary checked:bg-primary transition-colors focus:ring-0 focus:ring-offset-0"
+                      class="sr-only"
                     />
-                    <span
-                      class="material-symbols-outlined absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[16px] text-white opacity-0 peer-checked:opacity-100 pointer-events-none transition-opacity"
-                      >check</span
-                    >
                   </div>
                 </label>
 
@@ -451,7 +468,7 @@
             </section>
 
             <!-- Poids / tension -->
-            <section class="grid grid-cols-2 gap-4">
+            <section class="grid grid-cols-2 gap-4 soft-day-hide">
               <div
                 class="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-soft flex flex-col gap-3"
               >
@@ -501,39 +518,77 @@
               </div>
             </section>
 
-            <!-- Symptômes -->
-            <section>
+            <!-- Symptômes (riches) -->
+            <section class="soft-day-hide">
               <h3
                 class="text-lg font-bold text-text-main dark:text-white mb-4 flex items-center gap-2"
               >
                 <span class="material-symbols-outlined text-primary"
                   >stethoscope</span
                 >
-                Symptômes ressentis
+                Comment tu te sens ?
               </h3>
-              <div class="flex flex-wrap gap-2">
-                <label class="cursor-pointer">
-                  <input
-                    id="fatigue"
-                    type="checkbox"
-                    class="peer sr-only"
-                  />
-                  <span
-                    class="inline-block px-4 py-2 rounded-full bg-white dark:bg-surface-dark border border-gray-100 dark:border-gray-700 text-sm font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg shadow-sm"
-                    >🥱 Fatigue</span
-                  >
-                </label>
-                <label class="cursor-pointer">
-                  <input
-                    id="breathless"
-                    type="checkbox"
-                    class="peer sr-only"
-                  />
-                  <span
-                    class="inline-block px-4 py-2 rounded-full bg-white dark:bg-surface-dark border border-gray-100 dark:border-gray-700 text-sm font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary peer-checked:shadow-lg shadow-sm"
-                    >😮‍💨 Essoufflée</span
-                  >
-                </label>
+              <div class="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-soft flex flex-col gap-4">
+                <!-- Douleur -->
+                <div>
+                  <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-text-sub">Douleur</span>
+                    <span id="pain-level-label" class="text-sm font-bold text-primary">😌 0/10</span>
+                  </div>
+                  <input id="painLevel" type="range" min="0" max="10" step="1" value="0" class="pain-slider" />
+                </div>
+
+                <!-- Silhouette zones -->
+                <div>
+                  <div class="text-sm font-medium text-text-sub mb-2">Où as-tu mal ? (tape la zone)</div>
+                  <div class="flex justify-center">
+                    <svg id="body-svg" viewBox="0 0 120 220" width="140" height="220" aria-label="Silhouette">
+                      <circle class="body-zone" data-zone="tete" cx="60" cy="22" r="18" />
+                      <rect class="body-zone" data-zone="poitrine" x="38" y="46" width="44" height="36" rx="8" />
+                      <rect class="body-zone" data-zone="ventre" x="40" y="86" width="40" height="32" rx="10" />
+                      <rect class="body-zone" data-zone="bassin" x="40" y="122" width="40" height="22" rx="8" />
+                      <rect class="body-zone" data-zone="bras-g" x="14" y="50" width="18" height="58" rx="8" />
+                      <rect class="body-zone" data-zone="bras-d" x="88" y="50" width="18" height="58" rx="8" />
+                      <rect class="body-zone" data-zone="jambe-g" x="40" y="148" width="18" height="64" rx="8" />
+                      <rect class="body-zone" data-zone="jambe-d" x="62" y="148" width="18" height="64" rx="8" />
+                      <rect class="body-zone" data-zone="dos" x="14" y="115" width="92" height="6" rx="3" opacity="0.6" />
+                    </svg>
+                  </div>
+                </div>
+
+                <!-- Toggles symptomes -->
+                <div class="flex flex-wrap gap-2">
+                  <label class="cursor-pointer">
+                    <input id="fatigue" type="checkbox" class="peer sr-only" />
+                    <span class="inline-block px-3 py-1.5 rounded-full bg-white dark:bg-surface-dark border border-gray-200 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary">🥱 Fatigue</span>
+                  </label>
+                  <label class="cursor-pointer">
+                    <input id="breathless" type="checkbox" class="peer sr-only" />
+                    <span class="inline-block px-3 py-1.5 rounded-full bg-white dark:bg-surface-dark border border-gray-200 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary">😮‍💨 Essoufflée</span>
+                  </label>
+                  <label class="cursor-pointer">
+                    <input id="nausea" type="checkbox" class="peer sr-only" />
+                    <span class="inline-block px-3 py-1.5 rounded-full bg-white dark:bg-surface-dark border border-gray-200 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary">🤢 Nausées</span>
+                  </label>
+                  <label class="cursor-pointer">
+                    <input id="dizziness" type="checkbox" class="peer sr-only" />
+                    <span class="inline-block px-3 py-1.5 rounded-full bg-white dark:bg-surface-dark border border-gray-200 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary">💫 Vertiges</span>
+                  </label>
+                  <label class="cursor-pointer">
+                    <input id="contractions" type="checkbox" class="peer sr-only" />
+                    <span class="inline-block px-3 py-1.5 rounded-full bg-white dark:bg-surface-dark border border-gray-200 text-xs font-medium text-text-sub transition-all peer-checked:bg-primary peer-checked:text-white peer-checked:border-primary">🌊 Contractions</span>
+                  </label>
+                </div>
+
+                <!-- Tags personnalisés -->
+                <div>
+                  <div class="text-sm font-medium text-text-sub mb-2">Autres symptômes</div>
+                  <div id="custom-tags" class="flex flex-wrap gap-2 mb-2"></div>
+                  <div class="flex gap-2">
+                    <input id="custom-tag-input" type="text" maxlength="30" placeholder="Ex: maux de tête..." class="flex-1 bg-background-light dark:bg-background-dark/50 border-none rounded-lg text-sm p-2 focus:ring-2 focus:ring-primary/50" />
+                    <button type="button" id="custom-tag-add" class="px-3 rounded-lg bg-primary text-white text-sm font-medium">+</button>
+                  </div>
+                </div>
               </div>
             </section>
 
@@ -678,6 +733,24 @@
                 id="history-content"
                 class="history-content hidden flex flex-col gap-3"
               >
+                <!-- Heatmap des streaks -->
+                <div class="heatmap-wrap">
+                  <div class="flex items-center justify-between mb-3">
+                    <div class="text-sm font-bold text-text-main dark:text-white">Ton année en douceur</div>
+                    <div class="text-xs text-text-sub">365 derniers jours</div>
+                  </div>
+                  <div id="heatmap-grid" class="heatmap-grid"></div>
+                  <div class="heatmap-legend">
+                    <span>Moins</span>
+                    <span class="heatmap-cell lvl-0"></span>
+                    <span class="heatmap-cell lvl-1"></span>
+                    <span class="heatmap-cell lvl-2"></span>
+                    <span class="heatmap-cell lvl-3"></span>
+                    <span class="heatmap-cell lvl-4"></span>
+                    <span>Plus</span>
+                  </div>
+                </div>
+
                 <div id="history-body" class="flex flex-col gap-3"></div>
 
                 <div class="flex justify-center mt-2">
@@ -1571,6 +1644,51 @@
       </div>
 
       <div id="toast" class="toast hidden"></div>
+
+      <!-- Indicateur de synchro -->
+      <div id="sync-indicator" class="sync-indicator synced" title="Tout est synchronisé">♥</div>
+
+      <!-- Overlay réglages des rappels -->
+      <div id="settings-overlay" class="fixed inset-0 z-50 hidden bg-background-light/95 dark:bg-background-dark/95">
+        <div class="relative mx-auto flex h-full min-h-screen w-full max-w-md flex-col bg-background-light dark:bg-background-dark p-6">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-bold">Rappels & réglages</h2>
+            <button id="settings-close" type="button" class="size-10 rounded-full bg-white shadow-sm flex items-center justify-center"><span class="material-symbols-outlined">close</span></button>
+          </div>
+          <div class="flex flex-col gap-4">
+            <p class="text-sm text-text-sub">Choisis les heures auxquelles tu souhaites un petit rappel doux pour tes médicaments.</p>
+            <div class="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-soft flex items-center justify-between">
+              <label class="flex items-center gap-3"><input id="rem-morning-on" type="checkbox" /> Matin</label>
+              <input id="rem-morning-time" type="time" value="08:00" class="bg-background-light rounded p-2" />
+            </div>
+            <div class="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-soft flex items-center justify-between">
+              <label class="flex items-center gap-3"><input id="rem-noon-on" type="checkbox" /> Midi</label>
+              <input id="rem-noon-time" type="time" value="12:30" class="bg-background-light rounded p-2" />
+            </div>
+            <div class="bg-white dark:bg-surface-dark p-4 rounded-xl shadow-soft flex items-center justify-between">
+              <label class="flex items-center gap-3"><input id="rem-evening-on" type="checkbox" /> Soir</label>
+              <input id="rem-evening-time" type="time" value="19:00" class="bg-background-light rounded p-2" />
+            </div>
+            <button id="rem-test" type="button" class="mt-2 py-3 rounded-full bg-primary text-white font-bold">Tester une notification</button>
+            <p id="rem-perm-status" class="text-xs text-text-sub text-center"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bouton réglages flottant -->
+      <button id="settings-open" type="button" class="fixed top-4 left-4 size-10 rounded-full bg-white shadow-md flex items-center justify-center z-40" aria-label="Réglages">
+        <span class="material-symbols-outlined text-text-main">settings</span>
+      </button>
+
+      <!-- Overlay rituel du soir -->
+      <div id="evening-overlay" class="evening-overlay">
+        <button id="evening-close" type="button" class="evening-close" aria-label="Fermer">×</button>
+        <div class="evening-card">
+          <div id="evening-photo" class="evening-photo"></div>
+          <p id="evening-quote" class="evening-quote"></p>
+          <button id="evening-kiss" type="button" class="evening-kiss-btn">💋 Envoyer un bisou à Bibi</button>
+        </div>
+      </div>
     </div>
 
     <script src="app.js" defer></script>

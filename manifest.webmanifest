@@ -1,0 +1,26 @@
+{
+  "name": "Rituel de Capucine",
+  "short_name": "Capucine",
+  "description": "Petit rituel quotidien tout doux pour Capucine.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff5f7",
+  "theme_color": "#ee2b5b",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "assets/turtle-enceinte.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/turtle-enceinte.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
