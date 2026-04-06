@@ -1768,31 +1768,9 @@
     const kiss = document.getElementById('evening-kiss');
     if (close) close.addEventListener('click', () => overlay && overlay.classList.remove('is-open'));
     if (kiss) {
-      kiss.addEventListener('click', async (e) => {
-        // Petit cœur qui s'envole
-        const heart = document.createElement('div');
-        heart.className = 'heart-fly';
-        heart.textContent = '💖';
-        const rect = e.currentTarget.getBoundingClientRect();
-        heart.style.left = `${rect.left + rect.width/2 - 16}px`;
-        heart.style.top = `${rect.top}px`;
-        document.body.appendChild(heart);
-        setTimeout(() => heart.remove(), 1900);
-        try {
-          const r = await fetch(`${API_BASE_URL}/kiss`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...authHeaders() },
-            body: JSON.stringify({ message: 'Capucine te souhaite bonne nuit 💋' }),
-          });
-          const data = await r.json().catch(() => ({}));
-          if (data && data.delivered) {
-            showToast('Bisou envoyé à Bibi 💌');
-          } else {
-            showToast('Bisou enregistré (notif Bibi non configurée).');
-          }
-        } catch (_) {
-          showToast('Pas de connexion : ton bisou attendra.');
-        }
+      kiss.addEventListener('click', () => {
+        if (overlay) overlay.classList.remove('is-open');
+        openKissModal();
       });
     }
   }
@@ -1916,6 +1894,289 @@
     refreshStatus();
   }
 
+  // --- (#bisou) Modal complet bisou -----------------------------------------
+  const KISS_TYPES_FALLBACK = ['bisou', 'calin', 'pense', 'force'];
+  let selectedKissType = 'bisou';
+  let pendingPhotoBase64 = null;
+
+  function getKissEmojiForHour() {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 12) return '🌞';
+    if (h >= 12 && h < 18) return '💖';
+    if (h >= 18 && h < 22) return '✨';
+    return '🌙';
+  }
+  function getKissEmojiBank() {
+    const base = ['💖', '💕', '💗', '💞', '🌸'];
+    const h = new Date().getHours();
+    if (h >= 5 && h < 12) base.push('🌞', '☀️');
+    else if (h >= 12 && h < 18) base.push('💖', '🌷');
+    else if (h >= 18 && h < 22) base.push('✨', '🌟');
+    else base.push('🌙', '⭐');
+    return base;
+  }
+
+  function openKissModal() {
+    const modal = document.getElementById('kiss-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    selectedKissType = 'bisou';
+    document.querySelectorAll('.kiss-type-btn').forEach((b) => {
+      b.classList.toggle('is-selected', b.dataset.type === 'bisou');
+    });
+    const msg = document.getElementById('kiss-message');
+    if (msg) msg.value = '';
+    pendingPhotoBase64 = null;
+    const prev = document.getElementById('kiss-photo-preview');
+    const rem = document.getElementById('kiss-photo-remove');
+    if (prev) { prev.style.backgroundImage = ''; prev.classList.add('hidden'); }
+    if (rem) rem.classList.add('hidden');
+    const heart = document.getElementById('kiss-modal-heart');
+    if (heart) {
+      heart.classList.remove('is-launching');
+      heart.textContent = getKissEmojiForHour();
+    }
+    fetchKissStatsAndRender();
+  }
+  function closeKissModal() {
+    const modal = document.getElementById('kiss-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  async function fetchKissStatsAndRender() {
+    try {
+      const r = await fetch(`${API_BASE_URL}/kiss-stats`, { headers: { ...authHeaders() } });
+      if (!r.ok) return;
+      const data = await r.json();
+      const counter = document.getElementById('kiss-modal-counter');
+      const fabCount = document.getElementById('kiss-fab-count');
+      if (counter && typeof data.count === 'number') {
+        counter.textContent = data.count > 0
+          ? `${data.count} bisou${data.count > 1 ? 's' : ''} envoyé${data.count > 1 ? 's' : ''} à Bibi 💖`
+          : 'Premier bisou ?';
+      }
+      if (fabCount && typeof data.count === 'number') {
+        if (data.count > 0) {
+          fabCount.textContent = data.count > 99 ? '99+' : String(data.count);
+          fabCount.classList.remove('hidden');
+        } else {
+          fabCount.classList.add('hidden');
+        }
+      }
+      renderBibiReplies(data.replies || []);
+    } catch (_) {}
+  }
+
+  function renderBibiReplies(replies) {
+    const wrap = document.getElementById('kiss-replies');
+    const list = document.getElementById('kiss-replies-list');
+    if (!wrap || !list) return;
+    if (!replies.length) { wrap.classList.add('hidden'); return; }
+    wrap.classList.remove('hidden');
+    list.innerHTML = '';
+    const labels = {
+      love:   { emoji: '❤️',  text: 'Bibi t\'aime fort' },
+      hug:    { emoji: '🤗',  text: 'Bibi t\'envoie un câlin' },
+      call:   { emoji: '📞',  text: 'Bibi va t\'appeler' },
+      coming: { emoji: '🚗',  text: 'Bibi arrive' },
+      here:   { emoji: '🌸',  text: 'Bibi est avec toi' },
+    };
+    replies.forEach((r) => {
+      const meta = labels[r.type] || { emoji: '💌', text: r.label || 'Bibi' };
+      const item = document.createElement('div');
+      item.className = 'kiss-reply-item';
+      const e = document.createElement('span');
+      e.className = 'kiss-reply-emoji';
+      e.textContent = meta.emoji;
+      const t = document.createElement('span');
+      t.textContent = meta.text;
+      const time = document.createElement('span');
+      time.className = 'kiss-reply-time';
+      try {
+        const d = new Date(r.receivedAt);
+        time.textContent = d.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      } catch (_) {}
+      item.appendChild(e);
+      item.appendChild(t);
+      item.appendChild(time);
+      list.appendChild(item);
+    });
+    // marque comme vu côté serveur (best-effort)
+    fetch(`${API_BASE_URL}/replies/seen`, { method: 'POST', headers: { ...authHeaders() } }).catch(() => {});
+  }
+
+  function spawnKissParticles() {
+    const fab = document.getElementById('kiss-fab');
+    const startX = window.innerWidth / 2;
+    const startY = window.innerHeight / 2;
+    const bank = getKissEmojiBank();
+    for (let i = 0; i < 8; i++) {
+      const p = document.createElement('div');
+      p.className = 'kiss-fly-particle';
+      p.textContent = bank[Math.floor(Math.random() * bank.length)];
+      p.style.left = `${startX + (Math.random() * 60 - 30)}px`;
+      p.style.top = `${startY}px`;
+      p.style.setProperty('--dx', `${Math.random() * 200 - 100}px`);
+      p.style.setProperty('--rot', `${Math.random() * 60 - 30}deg`);
+      p.style.animationDelay = `${i * 60}ms`;
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 2200 + i * 60);
+    }
+    if (navigator.vibrate) {
+      try { navigator.vibrate([40, 30, 60]); } catch (_) {}
+    }
+  }
+
+  function showMilestoneOverlay(count) {
+    const overlay = document.getElementById('kiss-milestone');
+    const title = document.getElementById('kiss-milestone-title');
+    const closeBtn = document.getElementById('kiss-milestone-close');
+    if (!overlay || !title) return;
+    title.textContent = `${count} bisous !`;
+    overlay.classList.remove('hidden');
+    if (closeBtn) {
+      closeBtn.onclick = () => overlay.classList.add('hidden');
+    }
+    overlay.onclick = (e) => {
+      if (e.target === overlay) overlay.classList.add('hidden');
+    };
+    // confettis simples
+    for (let i = 0; i < 20; i++) {
+      const p = document.createElement('div');
+      p.className = 'kiss-fly-particle';
+      p.textContent = ['💖','✨','🌸','💕','⭐'][Math.floor(Math.random() * 5)];
+      p.style.left = `${Math.random() * window.innerWidth}px`;
+      p.style.top = `${window.innerHeight}px`;
+      p.style.setProperty('--dx', `${Math.random() * 200 - 100}px`);
+      p.style.setProperty('--rot', `${Math.random() * 360}deg`);
+      p.style.animationDelay = `${i * 50}ms`;
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 2400 + i * 50);
+    }
+  }
+
+  async function sendKiss({ type, message, imageBase64 } = {}) {
+    const sendBtn = document.getElementById('kiss-send-btn');
+    const sendLabel = document.getElementById('kiss-send-label');
+    const heart = document.getElementById('kiss-modal-heart');
+    if (sendBtn) sendBtn.disabled = true;
+    if (sendLabel) sendLabel.textContent = 'Envoi...';
+
+    try {
+      const r = await fetch(`${API_BASE_URL}/kiss`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        body: JSON.stringify({ type, message, imageBase64 }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (heart) {
+        heart.classList.add('is-launching');
+        setTimeout(() => heart.classList.remove('is-launching'), 1200);
+      }
+      spawnKissParticles();
+      if (data && data.delivered) {
+        showToast('Bisou envoyé à Bibi 💌');
+      } else {
+        showToast('Bisou enregistré (Bibi non configuré).');
+      }
+      if (data && typeof data.count === 'number') {
+        const fabCount = document.getElementById('kiss-fab-count');
+        if (fabCount) {
+          fabCount.textContent = data.count > 99 ? '99+' : String(data.count);
+          fabCount.classList.remove('hidden');
+        }
+      }
+      if (data && data.milestone && data.count) {
+        setTimeout(() => showMilestoneOverlay(data.count), 600);
+      }
+      setTimeout(closeKissModal, 1100);
+    } catch (e) {
+      showToast('Pas de connexion : ton bisou attendra.');
+    } finally {
+      if (sendBtn) sendBtn.disabled = false;
+      if (sendLabel) sendLabel.textContent = 'Envoyer';
+    }
+  }
+
+  function setupKissModule() {
+    const fab = document.getElementById('kiss-fab');
+    const fabEmoji = document.getElementById('kiss-fab-emoji');
+    if (fabEmoji) fabEmoji.textContent = getKissEmojiForHour();
+
+    const modal = document.getElementById('kiss-modal');
+    const closeBtn = document.getElementById('kiss-modal-close');
+    const sendBtn = document.getElementById('kiss-send-btn');
+    const msg = document.getElementById('kiss-message');
+    const photoInput = document.getElementById('kiss-photo-input');
+    const photoPreview = document.getElementById('kiss-photo-preview');
+    const photoRemove = document.getElementById('kiss-photo-remove');
+
+    if (fab) fab.addEventListener('click', openKissModal);
+    if (closeBtn) closeBtn.addEventListener('click', closeKissModal);
+    if (modal) {
+      const backdrop = modal.querySelector('.kiss-modal-backdrop');
+      if (backdrop) backdrop.addEventListener('click', closeKissModal);
+    }
+    document.querySelectorAll('.kiss-type-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        selectedKissType = btn.dataset.type;
+        document.querySelectorAll('.kiss-type-btn').forEach((b) =>
+          b.classList.toggle('is-selected', b === btn)
+        );
+        // mini bounce sur le coeur central
+        const heart = document.getElementById('kiss-modal-heart');
+        if (heart) {
+          heart.style.transform = 'scale(1.25)';
+          setTimeout(() => { heart.style.transform = ''; }, 200);
+        }
+      });
+    });
+    if (sendBtn) {
+      sendBtn.addEventListener('click', () => {
+        sendKiss({
+          type: selectedKissType,
+          message: msg ? msg.value.trim() : '',
+          imageBase64: pendingPhotoBase64,
+        });
+      });
+    }
+    if (photoInput) {
+      photoInput.addEventListener('change', () => {
+        const file = photoInput.files && photoInput.files[0];
+        if (!file) return;
+        if (file.size > 4 * 1024 * 1024) {
+          showToast('Photo trop lourde (max 4 Mo).');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          pendingPhotoBase64 = ev.target.result;
+          if (photoPreview) {
+            photoPreview.style.backgroundImage = `url('${pendingPhotoBase64}')`;
+            photoPreview.classList.remove('hidden');
+          }
+          if (photoRemove) photoRemove.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+    if (photoRemove) {
+      photoRemove.addEventListener('click', () => {
+        pendingPhotoBase64 = null;
+        if (photoInput) photoInput.value = '';
+        if (photoPreview) { photoPreview.style.backgroundImage = ''; photoPreview.classList.add('hidden'); }
+        photoRemove.classList.add('hidden');
+      });
+    }
+
+    // Charge le compteur initial
+    fetchKissStatsAndRender();
+    // Refresh stats quand l'onglet redevient visible (pour voir les nouvelles réponses Bibi)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') fetchKissStatsAndRender();
+    });
+  }
+
   // --- Indicateur de synchro -----------------------------------------------
   function setSyncState(state) {
     const el = document.getElementById('sync-indicator');
@@ -1946,6 +2207,9 @@
       'edit-overlay',
       'evening-overlay',
       'settings-overlay',
+      'kiss-modal',
+      'kiss-milestone',
+      'kiss-fab',
     ].forEach((id) => {
       const el = document.getElementById(id);
       if (el && el.parentElement !== document.body) {
@@ -1967,6 +2231,7 @@
     setupSymptoms();
     setupSettings();
     setupEveningRitual();
+    setupKissModule();
 
     const tabButtons = document.querySelectorAll('.tab-button');
     tabButtons.forEach((btn) => {

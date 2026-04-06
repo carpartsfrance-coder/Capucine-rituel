@@ -1689,6 +1689,74 @@
           <button id="evening-kiss" type="button" class="evening-kiss-btn">💋 Envoyer un bisou à Bibi</button>
         </div>
       </div>
+
+      <!-- Bouton bisou flottant (toujours visible) -->
+      <button id="kiss-fab" type="button" class="kiss-fab" aria-label="Envoyer un bisou à Bibi">
+        <span id="kiss-fab-emoji" class="kiss-fab-emoji">💋</span>
+        <span id="kiss-fab-count" class="kiss-fab-count hidden">0</span>
+      </button>
+
+      <!-- Modal de bisou -->
+      <div id="kiss-modal" class="kiss-modal hidden" role="dialog" aria-modal="true">
+        <div class="kiss-modal-backdrop"></div>
+        <div class="kiss-modal-card">
+          <button id="kiss-modal-close" type="button" class="kiss-modal-close" aria-label="Fermer">×</button>
+          <div class="kiss-modal-heart-wrap">
+            <div id="kiss-modal-heart" class="kiss-modal-heart">💖</div>
+          </div>
+          <h3 class="kiss-modal-title">Envoyer un bisou à Bibi</h3>
+          <p id="kiss-modal-counter" class="kiss-modal-counter"></p>
+
+          <div class="kiss-types">
+            <button type="button" class="kiss-type-btn" data-type="bisou">
+              <span class="kiss-type-emoji">💋</span>
+              <span class="kiss-type-label">Bisou doux</span>
+            </button>
+            <button type="button" class="kiss-type-btn" data-type="calin">
+              <span class="kiss-type-emoji">🤗</span>
+              <span class="kiss-type-label">Gros câlin</span>
+            </button>
+            <button type="button" class="kiss-type-btn" data-type="pense">
+              <span class="kiss-type-emoji">🌸</span>
+              <span class="kiss-type-label">Pense à moi</span>
+            </button>
+            <button type="button" class="kiss-type-btn" data-type="force">
+              <span class="kiss-type-emoji">💪</span>
+              <span class="kiss-type-label">Besoin de force</span>
+            </button>
+          </div>
+
+          <textarea id="kiss-message" maxlength="200" rows="2" placeholder="Un petit mot pour Bibi (facultatif)..." class="kiss-message"></textarea>
+
+          <div class="kiss-photo-row">
+            <label class="kiss-photo-btn">
+              <input id="kiss-photo-input" type="file" accept="image/*" capture="user" hidden />
+              <span>📷</span><span>Joindre une photo</span>
+            </label>
+            <div id="kiss-photo-preview" class="kiss-photo-preview hidden"></div>
+            <button type="button" id="kiss-photo-remove" class="kiss-photo-remove hidden" aria-label="Retirer la photo">×</button>
+          </div>
+
+          <button id="kiss-send-btn" type="button" class="kiss-send-btn">
+            <span id="kiss-send-label">Envoyer</span>
+          </button>
+
+          <div id="kiss-replies" class="kiss-replies hidden">
+            <div class="kiss-replies-title">💌 Bibi te dit</div>
+            <div id="kiss-replies-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overlay de jalon (10ème, 100ème bisou...) -->
+      <div id="kiss-milestone" class="kiss-milestone hidden">
+        <div class="kiss-milestone-card">
+          <div class="kiss-milestone-emoji">🎉</div>
+          <h2 id="kiss-milestone-title" class="kiss-milestone-title">100 bisous</h2>
+          <p class="kiss-milestone-text">Bibi te remercie pour tous ces moments doux 💖</p>
+          <button type="button" id="kiss-milestone-close" class="kiss-milestone-close-btn">Continuer</button>
+        </div>
+      </div>
     </div>
 
     <script src="app.js" defer></script>

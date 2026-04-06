@@ -30,7 +30,7 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: '64kb' }));
+app.use(express.json({ limit: '6mb' }));
 
 // Rate-limit générique sur l'API (60 req/min/IP, suffisant pour un usage perso)
 const apiLimiter = rateLimit({
@@ -265,37 +265,189 @@ app.post('/entries', requireToken, async (req, res) => {
 });
 
 // --- Bisou à Bibi via ntfy.sh --------------------------------------------
-// Si NTFY_TOPIC est défini dans .env, POST /kiss déclenche une notif ntfy
-// vers https://ntfy.sh/<NTFY_TOPIC>. Sinon, l'endpoint répond OK silencieux.
+// Si NTFY_TOPIC est défini, POST /kiss envoie une notif vers ntfy.sh.
 const ntfyTopic = process.env.NTFY_TOPIC || null;
 const ntfyServer = process.env.NTFY_SERVER || 'https://ntfy.sh';
+const publicBaseUrl = process.env.PUBLIC_BASE_URL || allowedOrigin || '';
+
+// Modèles de bisous (clé envoyée par le front → message + tags)
+// Tags ntfy : https://docs.ntfy.sh/emojis/
+const KISS_TYPES = {
+  bisou:  { title: 'Bisou de Capucine',  body: 'Capucine t\'envoie un bisou tout doux',     tags: 'kissing_heart,heart' },
+  calin:  { title: 'Calin de Capucine',  body: 'Capucine t\'envoie un gros calin',          tags: 'people_hugging,sparkling_heart' },
+  pense:  { title: 'Capucine pense a toi', body: 'Capucine pense fort a toi en ce moment',   tags: 'cherry_blossom,sparkles' },
+  force:  { title: 'Capucine a besoin de force', body: 'Capucine a besoin de douceur, peux-tu lui repondre ?', tags: 'muscle,heart' },
+};
+
+// Schemas pour le compteur et les réponses de Bibi -----------------------
+const kissLogSchema = new mongoose.Schema(
+  {
+    type: { type: String, default: 'bisou' },
+    message: String,
+    hour: Number,
+    sentAt: { type: Date, default: Date.now },
+  },
+  { timestamps: true }
+);
+const KissLog = mongoose.model('KissLog', kissLogSchema);
+
+const bibiReplySchema = new mongoose.Schema(
+  {
+    type: { type: String, required: true }, // love, hug, call, coming, here
+    label: String,
+    receivedAt: { type: Date, default: Date.now },
+    seen: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+const BibiReply = mongoose.model('BibiReply', bibiReplySchema);
+
+const REPLY_TYPES = {
+  love:   { label: 'Bibi t\'aime fort',         emoji: '❤️' },
+  hug:    { label: 'Bibi t\'envoie un calin',   emoji: '🤗' },
+  call:   { label: 'Bibi va t\'appeler',        emoji: '📞' },
+  coming: { label: 'Bibi arrive',               emoji: '🚗' },
+  here:   { label: 'Bibi est avec toi',         emoji: '🌸' },
+};
+
+function buildReplyActions(token) {
+  // Les actions ntfy http permettent à Bibi de répondre depuis la notif.
+  // Format : "http, Label, URL, method=POST, headers=..."
+  // On embed le token dans l'URL pour authentifier sans browser.
+  if (!publicBaseUrl) return null;
+  const base = publicBaseUrl.replace(/\/$/, '');
+  const t = encodeURIComponent(token || '');
+  const mk = (type, label) =>
+    `http, ${label}, ${base}/reply?type=${type}&t=${t}, method=POST, clear=true`;
+  return [
+    mk('love', 'Je t\'aime'),
+    mk('hug', 'Calin'),
+    mk('call', 'J\'appelle'),
+    mk('coming', 'J\'arrive'),
+  ].join('; ');
+}
+
 app.post('/kiss', requireToken, async (req, res) => {
   try {
-    if (!ntfyTopic) {
-      return res.json({ ok: true, delivered: false, reason: 'no-topic' });
+    const data = req.body || {};
+    const type = KISS_TYPES[data.type] ? data.type : 'bisou';
+    const tpl = KISS_TYPES[type];
+    const userMsg = typeof data.message === 'string' ? data.message.slice(0, 200).trim() : '';
+    const finalMessage = userMsg || tpl.body;
+
+    // Compte total + log (best-effort, ne bloque pas l'envoi)
+    let count = 0;
+    try {
+      await KissLog.create({ type, message: userMsg || null, hour: new Date().getHours() });
+      count = await KissLog.countDocuments({});
+    } catch (e) {
+      console.warn('KissLog write failed:', e.message);
     }
+
+    if (!ntfyTopic) {
+      return res.json({ ok: true, delivered: false, reason: 'no-topic', count });
+    }
+
     const url = `${ntfyServer.replace(/\/$/, '')}/${encodeURIComponent(ntfyTopic)}`;
-    const message =
-      (req.body && typeof req.body.message === 'string'
-        ? req.body.message.slice(0, 200)
-        : null) || 'Capucine te souhaite bonne nuit 💋';
-    // Les en-têtes HTTP n'autorisent que de l'ASCII/Latin-1 : pas d'emoji
-    // dans Title (provoque "Cannot convert argument to a ByteString").
-    // L'emoji visuel est ajouté via le header Tags (codes ntfy) et dans
-    // le body, pas dans Title.
-    const r = await fetch(url, {
+
+    // Message bonus aux jalons
+    let bodyToSend = finalMessage;
+    const milestone = [10, 25, 50, 100, 250, 500, 1000].includes(count);
+    if (milestone) {
+      bodyToSend += `\n\n🎉 ${count}eme bisou envoye a Bibi !`;
+    }
+
+    // Headers ntfy : tout ASCII (pas d'emoji)
+    const headers = {
+      Title: tpl.title,
+      Priority: type === 'force' ? 'high' : 'default',
+      Tags: tpl.tags,
+    };
+    const actions = buildReplyActions(sharedToken);
+    if (actions) headers.Actions = actions;
+
+    let r;
+    // Si une image est jointe (base64), on envoie en deux étapes :
+    // d'abord la photo (PUT body=binary), puis le message texte avec la même tag.
+    if (typeof data.imageBase64 === 'string' && data.imageBase64.startsWith('data:image/')) {
+      try {
+        const m = data.imageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
+        if (m) {
+          const mime = m[1];
+          const buf = Buffer.from(m[2], 'base64');
+          if (buf.length < 5 * 1024 * 1024) {
+            await fetch(url, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': mime,
+                Filename: 'capucine.jpg',
+                Title: tpl.title,
+                Tags: tpl.tags,
+                Message: 'Photo de Capucine',
+              },
+              body: buf,
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Image upload to ntfy failed:', e.message);
+      }
+    }
+
+    r = await fetch(url, {
       method: 'POST',
-      headers: {
-        Title: 'Bisou de Capucine',
-        Priority: 'default',
-        Tags: 'kissing_heart,heart',
-      },
-      body: message,
+      headers,
+      body: bodyToSend,
     });
-    return res.json({ ok: r.ok, delivered: r.ok });
+
+    return res.json({ ok: r.ok, delivered: r.ok, count, milestone });
   } catch (err) {
     console.error('Erreur POST /kiss :', err);
     return res.status(500).json({ error: 'Impossible d\'envoyer le bisou.' });
+  }
+});
+
+// GET stats : compteur + dernières réponses de Bibi
+app.get('/kiss-stats', requireToken, async (req, res) => {
+  try {
+    const count = await KissLog.countDocuments({}).catch(() => 0);
+    const replies = await BibiReply.find({}).sort({ receivedAt: -1 }).limit(5).lean().catch(() => []);
+    return res.json({ count, replies });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur stats bisous.' });
+  }
+});
+
+// POST /reply : appelé depuis les action buttons ntfy de Bibi.
+// Authent par query param ?t=<token> (compat ntfy qui ne sait pas envoyer
+// d'en-tête Authorization).
+app.post('/reply', async (req, res) => {
+  try {
+    if (sharedToken) {
+      const t = (req.query && req.query.t) || '';
+      if (t !== sharedToken) {
+        return res.status(401).json({ error: 'token invalide' });
+      }
+    }
+    const type = (req.query && req.query.type) || (req.body && req.body.type) || '';
+    if (!REPLY_TYPES[type]) {
+      return res.status(400).json({ error: 'type invalide' });
+    }
+    const reply = await BibiReply.create({ type, label: REPLY_TYPES[type].label });
+    return res.json({ ok: true, reply: { type, label: reply.label, receivedAt: reply.receivedAt } });
+  } catch (err) {
+    console.error('Erreur POST /reply :', err);
+    return res.status(500).json({ error: 'Erreur reply.' });
+  }
+});
+
+// POST /replies/seen : marque toutes les réponses comme vues
+app.post('/replies/seen', requireToken, async (req, res) => {
+  try {
+    await BibiReply.updateMany({ seen: false }, { $set: { seen: true } });
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur seen.' });
   }
 });
 
