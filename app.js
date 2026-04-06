@@ -265,6 +265,25 @@
   // Base API dynamique: en prod et en local, on utilise la même origine
   const API_BASE_URL = '';
 
+  // --- Constantes des nouveaux champs --------------------------------------
+  const PAIN_ZONES = ['tete','poitrine','ventre','dos','bras-g','bras-d','jambe-g','jambe-d','bassin'];
+  const REMINDERS_KEY = 'capucine_meds_reminders';
+  const DEFAULT_REMINDERS = {
+    morning: { time: '08:00', enabled: false },
+    noon:    { time: '12:30', enabled: false },
+    evening: { time: '19:00', enabled: false },
+  };
+
+  const EVENING_QUOTES = [
+    "Merci pour cette journée. Bibi et Turtle te chuchotent bonne nuit 💫",
+    "Le soir tombe doucement. Tu peux poser tout ce qui pèse, on garde la lumière.",
+    "Tu as fait de ton mieux aujourd'hui, et c'était plus que suffisant.",
+    "On t'embrasse fort. Ferme les yeux, on veille pendant ton sommeil.",
+    "Une étoile brille pour chaque jour de ton rituel. Aujourd'hui en est une nouvelle ✨",
+    "La nuit sera douce. Repose-toi, on est là.",
+    "Ton courage du jour devient un rêve cette nuit. Bonne nuit, jolie Capucine.",
+  ];
+
   // --- Token d'API (optionnel) ---------------------------------------------
   // Si le backend a CAPUCINE_TOKEN défini, on doit envoyer le token avec
   // chaque requête. On le stocke en localStorage. Pour le configurer, ouvrir
@@ -891,6 +910,25 @@
 
     document.getElementById('fatigue').checked = !!entry.fatigue;
     document.getElementById('breathless').checked = !!entry.breathless;
+    const setIfExists = (id, val) => { const e = document.getElementById(id); if (e) e.checked = !!val; };
+    setIfExists('nausea', entry.nausea);
+    setIfExists('dizziness', entry.dizziness);
+    setIfExists('contractions', entry.contractions);
+    const painEl = document.getElementById('painLevel');
+    if (painEl) {
+      painEl.value = entry.painLevel != null ? String(entry.painLevel) : '0';
+      updatePainLabel();
+    }
+    document.querySelectorAll('.body-zone').forEach((el) => el.classList.remove('is-selected'));
+    if (Array.isArray(entry.painZones)) {
+      entry.painZones.forEach((z) => {
+        const el = document.querySelector(`.body-zone[data-zone="${z}"]`);
+        if (el) el.classList.add('is-selected');
+      });
+    }
+    renderCustomTags(Array.isArray(entry.customTags) ? entry.customTags : []);
+    applySoftDayMode(entry.mood);
+    syncWaterGlass();
 
     const sleepValues =
       entry.sleepQuality && typeof entry.sleepQuality === 'string'
@@ -948,6 +986,16 @@
 
     const fatigue = document.getElementById('fatigue').checked;
     const breathless = document.getElementById('breathless').checked;
+    const nauseaEl = document.getElementById('nausea');
+    const dizzinessEl = document.getElementById('dizziness');
+    const contractionsEl = document.getElementById('contractions');
+    const nausea = nauseaEl ? nauseaEl.checked : false;
+    const dizziness = dizzinessEl ? dizzinessEl.checked : false;
+    const contractions = contractionsEl ? contractionsEl.checked : false;
+    const painLevelEl = document.getElementById('painLevel');
+    const painLevel = painLevelEl ? Number(painLevelEl.value) : 0;
+    const painZones = Array.from(document.querySelectorAll('.body-zone.is-selected')).map((el) => el.dataset.zone);
+    const customTags = Array.from(document.querySelectorAll('#custom-tags .custom-tag')).map((el) => el.dataset.tag);
     const notes = document.getElementById('notes').value.trim();
 
     const weightKg = weightRaw !== '' ? Number(weightRaw) : null;
@@ -970,17 +1018,27 @@
       sleepQuality,
       fatigue,
       breathless,
+      nausea,
+      dizziness,
+      contractions,
+      painLevel,
+      painZones,
+      customTags,
       notes,
     };
   }
 
   async function saveTodayEntryFromForm(options = { showToast: false }) {
     const entry = getTodayEntryFromForm();
+    setSyncState('syncing');
     const updatedEntries = await saveEntryToBackend(entry);
+    setSyncState(navigator.onLine ? 'synced' : 'offline');
     updateTodaySummary(entry);
     renderHistory(updatedEntries);
     updateHeaderAndStreak(updatedEntries);
     updateHistoryStats(updatedEntries);
+    renderHeatmap(updatedEntries);
+    applySoftDayMode(entry.mood);
     if (options.showToast) {
       showToast('Ta journée a bien été enregistrée.');
     }
@@ -1425,6 +1483,7 @@
         moodValueInput.value = value;
         moodButtons.forEach((b) => b.classList.remove('selected'));
         btn.classList.add('selected');
+        applySoftDayMode(Number(value));
         debouncedAutoSave();
       });
     });
@@ -1453,7 +1512,10 @@
     checkboxIds.forEach((id) => {
       const el = document.getElementById(id);
       if (el) {
-        el.addEventListener('change', debouncedAutoSave);
+        el.addEventListener('change', () => {
+          if (id === 'drank1L') syncWaterGlass();
+          debouncedAutoSave();
+        });
       }
     });
 
@@ -1469,6 +1531,400 @@
     });
   }
 
+  // ==========================================================================
+  // Nouvelles features (#3, #4, #7, #8, #17, #19, #24)
+  // ==========================================================================
+
+  // --- (#7) PWA : enregistrement service worker -----------------------------
+  function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+    window.addEventListener('load', () => {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then((reg) => {
+          // Replanifie les rappels si activés
+          rescheduleAllReminders(reg);
+        })
+        .catch((err) => console.warn('SW register failed', err));
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        const data = event.data || {};
+        if (data.type === 'MARK_MEDS' && data.slot) {
+          const map = { morning: 'medsMorning', noon: 'medsNoon', evening: 'medsEvening' };
+          const id = map[data.slot];
+          const el = id && document.getElementById(id);
+          if (el) {
+            el.checked = !!data.taken;
+            debouncedAutoSave();
+            showToast('Médicament marqué depuis la notification ✅');
+          }
+        }
+      });
+    });
+  }
+
+  // --- (#19) Animation verre d'eau ----------------------------------------
+  function syncWaterGlass() {
+    const glass = document.getElementById('water-glass');
+    const cb = document.getElementById('drank1L');
+    if (!glass || !cb) return;
+    glass.classList.toggle('is-full', cb.checked);
+  }
+  function setupWaterGlass() {
+    const glass = document.getElementById('water-glass');
+    const cb = document.getElementById('drank1L');
+    if (!glass || !cb) return;
+    glass.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      cb.checked = !cb.checked;
+      syncWaterGlass();
+      debouncedAutoSave();
+    });
+    glass.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        glass.click();
+      }
+    });
+    syncWaterGlass();
+  }
+
+  // --- (#24) Soft day mode -------------------------------------------------
+  let softDayForceShow = false;
+  function applySoftDayMode(mood) {
+    if (softDayForceShow) {
+      document.body.classList.remove('soft-day');
+      return;
+    }
+    const soft = mood === 1 || mood === 2;
+    document.body.classList.toggle('soft-day', soft);
+  }
+  function setupSoftDay() {
+    const btn = document.getElementById('soft-day-show-all');
+    if (btn) {
+      btn.addEventListener('click', () => {
+        softDayForceShow = true;
+        document.body.classList.remove('soft-day');
+      });
+    }
+  }
+
+  // --- (#4) Symptômes riches -----------------------------------------------
+  const PAIN_EMOJI = ['😌','🙂','😐','😕','😟','😣','😖','😫','😩','😢','😭'];
+  function updatePainLabel() {
+    const el = document.getElementById('painLevel');
+    const lbl = document.getElementById('pain-level-label');
+    if (!el || !lbl) return;
+    const v = Number(el.value) || 0;
+    lbl.textContent = `${PAIN_EMOJI[v]} ${v}/10`;
+  }
+  function setupSymptoms() {
+    const slider = document.getElementById('painLevel');
+    if (slider) {
+      slider.addEventListener('input', () => {
+        updatePainLabel();
+        debouncedAutoSave();
+      });
+    }
+    document.querySelectorAll('.body-zone').forEach((el) => {
+      el.addEventListener('click', () => {
+        el.classList.toggle('is-selected');
+        debouncedAutoSave();
+      });
+    });
+    ['nausea','dizziness','contractions'].forEach((id) => {
+      const e = document.getElementById(id);
+      if (e) e.addEventListener('change', debouncedAutoSave);
+    });
+    const addBtn = document.getElementById('custom-tag-add');
+    const input = document.getElementById('custom-tag-input');
+    if (addBtn && input) {
+      const add = () => {
+        const v = (input.value || '').trim().slice(0, 30);
+        if (!v) return;
+        const current = Array.from(document.querySelectorAll('#custom-tags .custom-tag')).map((el) => el.dataset.tag);
+        if (current.length >= 10 || current.includes(v)) return;
+        renderCustomTags([...current, v]);
+        input.value = '';
+        debouncedAutoSave();
+      };
+      addBtn.addEventListener('click', add);
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } });
+    }
+    updatePainLabel();
+  }
+  function renderCustomTags(tags) {
+    const container = document.getElementById('custom-tags');
+    if (!container) return;
+    container.innerHTML = '';
+    tags.forEach((tag) => {
+      const chip = document.createElement('span');
+      chip.className = 'custom-tag inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium';
+      chip.dataset.tag = tag;
+      chip.textContent = tag;
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.textContent = '×';
+      x.className = 'ml-1';
+      x.addEventListener('click', () => {
+        chip.remove();
+        debouncedAutoSave();
+      });
+      chip.appendChild(x);
+      container.appendChild(chip);
+    });
+  }
+
+  // --- (#8) Heatmap des streaks --------------------------------------------
+  function renderHeatmap(entries) {
+    const grid = document.getElementById('heatmap-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    const byDate = {};
+    entries.forEach((e) => { if (e && e.date) byDate[e.date] = e; });
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const days = 365;
+    // Pour avoir un alignement propre par semaine, on commence un dimanche
+    const start = new Date(today);
+    start.setDate(start.getDate() - (days - 1));
+    // recule jusqu'au dimanche précédent
+    while (start.getDay() !== 0) start.setDate(start.getDate() - 1);
+    const cur = new Date(start);
+    const end = today;
+    while (cur <= end) {
+      const key = formatDate(cur);
+      const e = byDate[key];
+      const score = e ? scoreEntry(e) : 0;
+      const lvl = scoreToLevel(score);
+      const cell = document.createElement('div');
+      cell.className = `heatmap-cell lvl-${lvl}`;
+      cell.title = `${formatDateHuman(key)} — ${score}/7`;
+      if (e) {
+        cell.addEventListener('click', () => openDetailOverlay(e));
+      }
+      grid.appendChild(cell);
+      cur.setDate(cur.getDate() + 1);
+    }
+  }
+  function scoreEntry(e) {
+    let s = 0;
+    if (e.drank1L) s += 1;
+    if (e.medsMorning) s += 1;
+    if (e.medsNoon) s += 1;
+    if (e.medsEvening) s += 1;
+    if (e.mealBreakfast) s += 1;
+    if (e.mealLunch) s += 1;
+    if (e.mealDinner) s += 1;
+    return s;
+  }
+  function scoreToLevel(s) {
+    if (s <= 0) return 0;
+    if (s <= 2) return 1;
+    if (s <= 4) return 2;
+    if (s <= 6) return 3;
+    return 4;
+  }
+
+  // --- (#17) Rituel du soir ------------------------------------------------
+  function isEveningTime() {
+    const h = new Date().getHours();
+    return h >= 18 || h < 5;
+  }
+  function showEveningRitual(entry) {
+    const overlay = document.getElementById('evening-overlay');
+    const photo = document.getElementById('evening-photo');
+    const quote = document.getElementById('evening-quote');
+    if (!overlay) return;
+    if (photo) {
+      const url = getSuccessImageForDate(entry.date);
+      photo.style.backgroundImage = `url('${url}')`;
+    }
+    if (quote) {
+      const idx = Math.abs(entry.date.split('').reduce((h,c) => ((h<<5)-h+c.charCodeAt(0))|0, 0)) % EVENING_QUOTES.length;
+      const base = EVENING_QUOTES[idx];
+      let suffix = '';
+      if (entry.mood >= 4) suffix = ' Garde cette douceur en t\'endormant 🌸';
+      else if (entry.mood && entry.mood <= 2) suffix = ' Demain est un autre jour, tout doux.';
+      typeWriter(quote, base + suffix);
+    }
+    overlay.classList.add('is-open');
+  }
+  function typeWriter(el, text) {
+    el.textContent = '';
+    let i = 0;
+    const tick = () => {
+      if (i < text.length) {
+        el.textContent += text.charAt(i);
+        i += 1;
+        setTimeout(tick, 28);
+      }
+    };
+    tick();
+  }
+  function setupEveningRitual() {
+    const overlay = document.getElementById('evening-overlay');
+    const close = document.getElementById('evening-close');
+    const kiss = document.getElementById('evening-kiss');
+    if (close) close.addEventListener('click', () => overlay && overlay.classList.remove('is-open'));
+    if (kiss) {
+      kiss.addEventListener('click', async (e) => {
+        // Petit cœur qui s'envole
+        const heart = document.createElement('div');
+        heart.className = 'heart-fly';
+        heart.textContent = '💖';
+        const rect = e.currentTarget.getBoundingClientRect();
+        heart.style.left = `${rect.left + rect.width/2 - 16}px`;
+        heart.style.top = `${rect.top}px`;
+        document.body.appendChild(heart);
+        setTimeout(() => heart.remove(), 1900);
+        try {
+          const r = await fetch(`${API_BASE_URL}/kiss`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify({ message: 'Capucine te souhaite bonne nuit 💋' }),
+          });
+          const data = await r.json().catch(() => ({}));
+          if (data && data.delivered) {
+            showToast('Bisou envoyé à Bibi 💌');
+          } else {
+            showToast('Bisou enregistré (notif Bibi non configurée).');
+          }
+        } catch (_) {
+          showToast('Pas de connexion : ton bisou attendra.');
+        }
+      });
+    }
+  }
+
+  // --- (#3) Notifications de rappel ----------------------------------------
+  function loadReminders() {
+    try {
+      const raw = localStorage.getItem(REMINDERS_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return { ...DEFAULT_REMINDERS, ...(parsed || {}) };
+    } catch (_) {
+      return { ...DEFAULT_REMINDERS };
+    }
+  }
+  function saveReminders(r) {
+    try {
+      localStorage.setItem(REMINDERS_KEY, JSON.stringify(r));
+    } catch (_) {}
+  }
+  function nextOccurrence(time) {
+    const [h, m] = time.split(':').map(Number);
+    const now = new Date();
+    const target = new Date(now);
+    target.setHours(h, m, 0, 0);
+    if (target <= now) target.setDate(target.getDate() + 1);
+    return target.getTime();
+  }
+  async function rescheduleAllReminders(reg) {
+    const sw = (reg && reg.active) || (navigator.serviceWorker && navigator.serviceWorker.controller);
+    if (!sw) return;
+    const r = loadReminders();
+    const slots = [
+      ['morning', r.morning, 'C\'est l\'heure de tes médicaments du matin 💊'],
+      ['noon',    r.noon,    'C\'est l\'heure de tes médicaments du midi 💊'],
+      ['evening', r.evening, 'C\'est l\'heure de tes médicaments du soir 💊'],
+    ];
+    slots.forEach(([slot, conf, label]) => {
+      sw.postMessage({ type: 'CANCEL_REMINDER', id: `meds-${slot}` });
+      if (conf && conf.enabled && conf.time) {
+        sw.postMessage({
+          type: 'SCHEDULE_REMINDER',
+          id: `meds-${slot}`,
+          when: nextOccurrence(conf.time),
+          label,
+          slot,
+        });
+      }
+    });
+  }
+  function setupSettings() {
+    const open = document.getElementById('settings-open');
+    const close = document.getElementById('settings-close');
+    const overlay = document.getElementById('settings-overlay');
+    const status = document.getElementById('rem-perm-status');
+    if (!open || !overlay) return;
+
+    const refreshStatus = () => {
+      if (!status) return;
+      if (!('Notification' in window)) {
+        status.textContent = 'Les notifications ne sont pas supportées sur ce navigateur.';
+        return;
+      }
+      status.textContent = `Permission : ${Notification.permission}`;
+    };
+
+    const r = loadReminders();
+    const set = (id, v) => { const e = document.getElementById(id); if (e) { if (e.type === 'checkbox') e.checked = v; else e.value = v; } };
+    set('rem-morning-on', r.morning.enabled);
+    set('rem-morning-time', r.morning.time);
+    set('rem-noon-on', r.noon.enabled);
+    set('rem-noon-time', r.noon.time);
+    set('rem-evening-on', r.evening.enabled);
+    set('rem-evening-time', r.evening.time);
+
+    const persist = async () => {
+      const next = {
+        morning: { enabled: document.getElementById('rem-morning-on').checked, time: document.getElementById('rem-morning-time').value || '08:00' },
+        noon:    { enabled: document.getElementById('rem-noon-on').checked,    time: document.getElementById('rem-noon-time').value    || '12:30' },
+        evening: { enabled: document.getElementById('rem-evening-on').checked, time: document.getElementById('rem-evening-time').value || '19:00' },
+      };
+      saveReminders(next);
+      // Demande la permission si au moins un slot est activé
+      const anyOn = next.morning.enabled || next.noon.enabled || next.evening.enabled;
+      if (anyOn && 'Notification' in window && Notification.permission === 'default') {
+        try { await Notification.requestPermission(); } catch (_) {}
+      }
+      refreshStatus();
+      try {
+        const reg = await navigator.serviceWorker.getRegistration();
+        rescheduleAllReminders(reg);
+      } catch (_) {}
+    };
+
+    ['rem-morning-on','rem-noon-on','rem-evening-on','rem-morning-time','rem-noon-time','rem-evening-time'].forEach((id) => {
+      const e = document.getElementById(id);
+      if (e) e.addEventListener('change', persist);
+    });
+
+    open.addEventListener('click', () => { overlay.classList.remove('hidden'); refreshStatus(); });
+    if (close) close.addEventListener('click', () => overlay.classList.add('hidden'));
+    const test = document.getElementById('rem-test');
+    if (test) {
+      test.addEventListener('click', async () => {
+        if (!('Notification' in window)) return showToast('Notifications non supportées.');
+        if (Notification.permission !== 'granted') {
+          try { await Notification.requestPermission(); } catch (_) {}
+        }
+        if (Notification.permission !== 'granted') return showToast('Permission refusée.');
+        try {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg && reg.showNotification) {
+            reg.showNotification('Test 💊', { body: 'Tout fonctionne bien !', icon: '/assets/turtle-enceinte.png' });
+          } else {
+            new Notification('Test 💊', { body: 'Tout fonctionne bien !' });
+          }
+        } catch (_) {
+          showToast('Impossible de tester la notification.');
+        }
+      });
+    }
+    refreshStatus();
+  }
+
+  // --- Indicateur de synchro -----------------------------------------------
+  function setSyncState(state) {
+    const el = document.getElementById('sync-indicator');
+    if (!el) return;
+    el.classList.remove('synced','offline','syncing');
+    el.classList.add(state);
+    el.title = state === 'synced' ? 'Tout est synchronisé' : state === 'offline' ? 'Hors ligne' : 'Synchronisation...';
+  }
+
   async function safeInit() {
     try {
       await init();
@@ -1480,13 +1936,37 @@
 
   async function init() {
     captureTokenFromHash();
+    registerServiceWorker();
+
+    // Déplace les overlays fixed hors de la carte max-w-md (qui a
+    // overflow-hidden) pour qu'ils couvrent toute la fenêtre.
+    [
+      'success-overlay',
+      'detail-overlay',
+      'edit-overlay',
+      'evening-overlay',
+      'settings-overlay',
+    ].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el && el.parentElement !== document.body) {
+        document.body.appendChild(el);
+      }
+    });
 
     // Tente de renvoyer les entrées en attente quand la connexion revient
     // ou quand l'utilisatrice revient sur l'onglet.
-    window.addEventListener('online', flushPendingEntries);
+    window.addEventListener('online', () => { setSyncState('syncing'); flushPendingEntries().then(() => setSyncState('synced')); });
+    window.addEventListener('offline', () => setSyncState('offline'));
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') flushPendingEntries();
     });
+    if (!navigator.onLine) setSyncState('offline');
+
+    setupWaterGlass();
+    setupSoftDay();
+    setupSymptoms();
+    setupSettings();
+    setupEveningRitual();
 
     const tabButtons = document.querySelectorAll('.tab-button');
     tabButtons.forEach((btn) => {
@@ -1512,6 +1992,7 @@
     renderHistory(entries);
     updateHeaderAndStreak(entries);
     updateHistoryStats(entries);
+    renderHeatmap(entries);
 
     // Deep-linking : si l’URL contient ?tab=history&date=YYYY-MM-DD,
     // on ouvre directement l’onglet Historique et, si possible, la journée ciblée.
@@ -1537,10 +2018,18 @@
 
     const form = document.getElementById('today-form');
     if (form) {
-      form.addEventListener('submit', (event) => {
+      form.addEventListener('submit', async (event) => {
         event.preventDefault();
-        saveTodayEntryFromForm({ showToast: true });
+        await saveTodayEntryFromForm({ showToast: true });
         const allEntries = loadEntries();
+        if (isEveningTime()) {
+          const todayKey = formatDate(new Date());
+          const todayEntry = allEntries.find((e) => e.date === todayKey);
+          if (todayEntry) {
+            showEveningRitual(todayEntry);
+            return;
+          }
+        }
         showSuccessOverlay(allEntries);
       });
     }

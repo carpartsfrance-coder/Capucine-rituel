@@ -93,6 +93,13 @@ const entrySchema = new mongoose.Schema(
     breathless: Boolean,
     sleepQuality: String,
     notes: String,
+    painLevel: Number,
+    painZones: [String],
+    nausea: Boolean,
+    dizziness: Boolean,
+    contractions: Boolean,
+    customTags: [String],
+    medsReminders: { type: Object, default: undefined },
   },
   {
     timestamps: true,
@@ -105,6 +112,9 @@ const Entry = mongoose.model('Entry', entrySchema);
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const SLEEP_VALUES = new Set(['oui', 'non', 'cauchemar']);
+const PAIN_ZONES = new Set([
+  'tete', 'poitrine', 'ventre', 'dos', 'bras-g', 'bras-d', 'jambe-g', 'jambe-d', 'bassin',
+]);
 
 function pickNumber(value, { min, max }) {
   if (value === null || value === undefined || value === '') return null;
@@ -155,9 +165,48 @@ function sanitizeEntry(data) {
     breathless: !!data.breathless,
     sleepQuality: pickSleep(data.sleepQuality),
     notes,
+    painLevel: pickNumber(data.painLevel, { min: 0, max: 10 }),
+    painZones: Array.isArray(data.painZones)
+      ? Array.from(
+          new Set(
+            data.painZones
+              .filter((z) => typeof z === 'string')
+              .map((z) => z.trim())
+              .filter((z) => PAIN_ZONES.has(z))
+          )
+        )
+      : [],
+    nausea: !!data.nausea,
+    dizziness: !!data.dizziness,
+    contractions: !!data.contractions,
+    customTags: Array.isArray(data.customTags)
+      ? data.customTags
+          .filter((t) => typeof t === 'string')
+          .map((t) => t.trim().slice(0, 30))
+          .filter(Boolean)
+          .slice(0, 10)
+      : [],
+    medsReminders:
+      data.medsReminders && typeof data.medsReminders === 'object'
+        ? sanitizeReminders(data.medsReminders)
+        : undefined,
   };
 
   return { entry };
+}
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+function sanitizeReminders(obj) {
+  const out = {};
+  for (const slot of ['morning', 'noon', 'evening']) {
+    const v = obj[slot];
+    if (v && typeof v === 'object') {
+      const time = typeof v.time === 'string' && TIME_RE.test(v.time) ? v.time : null;
+      const enabled = !!v.enabled;
+      if (time) out[slot] = { time, enabled };
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 // --- Routes -----------------------------------------------------------------
@@ -212,6 +261,37 @@ app.post('/entries', requireToken, async (req, res) => {
     res
       .status(500)
       .json({ error: "Erreur serveur lors de l'enregistrement de la journée." });
+  }
+});
+
+// --- Bisou à Bibi via ntfy.sh --------------------------------------------
+// Si NTFY_TOPIC est défini dans .env, POST /kiss déclenche une notif ntfy
+// vers https://ntfy.sh/<NTFY_TOPIC>. Sinon, l'endpoint répond OK silencieux.
+const ntfyTopic = process.env.NTFY_TOPIC || null;
+const ntfyServer = process.env.NTFY_SERVER || 'https://ntfy.sh';
+app.post('/kiss', requireToken, async (req, res) => {
+  try {
+    if (!ntfyTopic) {
+      return res.json({ ok: true, delivered: false, reason: 'no-topic' });
+    }
+    const url = `${ntfyServer.replace(/\/$/, '')}/${encodeURIComponent(ntfyTopic)}`;
+    const message =
+      (req.body && typeof req.body.message === 'string'
+        ? req.body.message.slice(0, 200)
+        : null) || 'Capucine te souhaite bonne nuit 💋';
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Title: 'Bisou de Capucine 💌',
+        Priority: 'default',
+        Tags: 'kiss,heart',
+      },
+      body: message,
+    });
+    return res.json({ ok: r.ok, delivered: r.ok });
+  } catch (err) {
+    console.error('Erreur POST /kiss :', err);
+    return res.status(500).json({ error: 'Impossible d\'envoyer le bisou.' });
   }
 });
 
