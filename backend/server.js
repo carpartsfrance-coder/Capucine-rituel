@@ -9,6 +9,9 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Render/Heroku style proxy : nécessaire pour express-rate-limit et req.ip
+app.set('trust proxy', 1);
+
 // --- Sécurité ---------------------------------------------------------------
 
 // Helmet : en-têtes de sécurité raisonnables. CSP désactivée car le front
@@ -41,9 +44,7 @@ const apiLimiter = rateLimit({
 });
 app.use('/entries', apiLimiter);
 
-// Auth par token partagé : si CAPUCINE_TOKEN est défini dans .env, toute
-// requête sur /entries doit présenter `Authorization: Bearer <token>` ou
-// l'en-tête `X-Capucine-Token`. Sinon, l'app reste ouverte (compat).
+// Auth par token partagé (legacy) : header Authorization Bearer ou X-Capucine-Token
 const sharedToken = process.env.CAPUCINE_TOKEN || null;
 function requireToken(req, res, next) {
   if (!sharedToken) return next();
@@ -55,6 +56,20 @@ function requireToken(req, res, next) {
   const provided = bearer || headerToken;
   if (provided && provided === sharedToken) return next();
   return res.status(401).json({ error: 'Token manquant ou invalide.' });
+}
+
+// Auth par slug dans le path : /c/:slug/...
+// Le slug EST l'authentification. Une seule URL à bookmarker, qui marche
+// dans tous les navigateurs et survit aux changements de PWA/storage.
+const capucineSlug = process.env.CAPUCINE_SLUG || null;
+function requireSlug(req, res, next) {
+  if (!capucineSlug) {
+    return res.status(404).json({ error: 'Slug auth disabled (CAPUCINE_SLUG non configuré).' });
+  }
+  if (req.params.slug !== capucineSlug) {
+    return res.status(404).send('Not found');
+  }
+  next();
 }
 
 // --- DB ---------------------------------------------------------------------
@@ -213,56 +228,134 @@ function sanitizeReminders(obj) {
 
 // Front statique : sert index.html, app.js, style.css depuis le dossier parent
 const FRONT_DIR = path.join(__dirname, '..');
-app.use(express.static(FRONT_DIR));
 
-app.get('/', (req, res) => {
-  res.sendFile(path.join(FRONT_DIR, 'index.html'));
-});
-
-app.get('/health', (req, res) => {
-  res.json({ ok: true });
-});
-
-app.get('/entries', requireToken, async (req, res) => {
+// --- Handlers extraits (réutilisés sous /c/:slug et legacy /) -----------
+async function getEntriesHandler(req, res) {
   try {
     const entries = await Entry.find({}).sort({ date: 1 });
     res.json(entries);
   } catch (err) {
     console.error('Erreur GET /entries :', err);
-    res
-      .status(500)
-      .json({ error: 'Erreur serveur lors de la récupération des entrées.' });
+    res.status(500).json({ error: 'Erreur serveur lors de la récupération des entrées.' });
   }
-});
-
-app.post('/entries', requireToken, async (req, res) => {
+}
+async function postEntriesHandler(req, res) {
   try {
     const { entry: update, error } = sanitizeEntry(req.body);
-    if (error) {
-      return res.status(400).json({ error });
-    }
-
+    if (error) return res.status(400).json({ error });
     const entry = await Entry.findOneAndUpdate({ date: update.date }, update, {
       new: true,
       upsert: true,
       setDefaultsOnInsert: true,
     });
-
     res.json(entry);
   } catch (err) {
     if (err && err.code === 11000) {
-      // Conflit de clé dupliquée (race upsert) : on retourne l'existant.
       try {
         const existing = await Entry.findOne({ date: req.body && req.body.date });
         if (existing) return res.json(existing);
       } catch (_) {}
     }
     console.error('Erreur POST /entries :', err);
-    res
-      .status(500)
-      .json({ error: "Erreur serveur lors de l'enregistrement de la journée." });
+    res.status(500).json({ error: "Erreur serveur lors de l'enregistrement de la journée." });
   }
+}
+
+// --- SSE pour les réponses Bibi en temps réel ---------------------------
+// Map slug -> Set<res>
+const sseClients = new Map();
+function addSseClient(slug, res) {
+  if (!sseClients.has(slug)) sseClients.set(slug, new Set());
+  sseClients.get(slug).add(res);
+}
+function removeSseClient(slug, res) {
+  const set = sseClients.get(slug);
+  if (set) set.delete(res);
+}
+function broadcastToSlug(slug, eventName, data) {
+  const set = sseClients.get(slug);
+  if (!set || !set.size) return;
+  const payload = `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const r of set) {
+    try { r.write(payload); } catch (_) {}
+  }
+}
+function sseHandler(req, res) {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  if (typeof res.flushHeaders === 'function') res.flushHeaders();
+  res.write(': connected\n\n');
+  const slug = req.params.slug;
+  addSseClient(slug, res);
+  // Heartbeat toutes les 25s pour garder la connexion ouverte (proxies)
+  const hb = setInterval(() => {
+    try { res.write(': hb\n\n'); } catch (_) {}
+  }, 25000);
+  req.on('close', () => {
+    clearInterval(hb);
+    removeSseClient(slug, res);
+  });
+}
+
+// --- Static & root --------------------------------------------------------
+app.get('/health', (req, res) => res.json({ ok: true }));
+
+// Manifest dynamique sous /c/:slug : pour que la PWA installée à cette
+// URL ait son start_url et son scope dans /c/:slug/.
+app.get('/c/:slug/manifest.webmanifest', requireSlug, (req, res) => {
+  const slug = req.params.slug;
+  res.json({
+    name: 'Rituel de Capucine',
+    short_name: 'Capucine',
+    description: 'Petit rituel quotidien tout doux pour Capucine.',
+    start_url: `/c/${slug}/`,
+    scope: `/c/${slug}/`,
+    display: 'standalone',
+    orientation: 'portrait',
+    background_color: '#fff5f7',
+    theme_color: '#ee2b5b',
+    lang: 'fr',
+    icons: [
+      { src: '/assets/turtle-enceinte.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/assets/turtle-enceinte.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+    ],
+  });
 });
+
+// Static sous /c/:slug : sert le shell front. Le slug doit être valide.
+app.use(
+  '/c/:slug',
+  (req, res, next) => {
+    if (!capucineSlug || req.params.slug !== capucineSlug) {
+      return res.status(404).send('Not found');
+    }
+    next();
+  },
+  express.static(FRONT_DIR, { index: 'index.html', extensions: ['html'] })
+);
+
+// Catch root du slug : sert index.html
+app.get(['/c/:slug', '/c/:slug/'], requireSlug, (req, res) => {
+  res.sendFile(path.join(FRONT_DIR, 'index.html'));
+});
+
+// Static legacy à la racine (compat ancien token)
+app.use(express.static(FRONT_DIR));
+app.get('/', (req, res) => {
+  res.sendFile(path.join(FRONT_DIR, 'index.html'));
+});
+
+// --- Routes API : versions slug + legacy --------------------------------
+// /entries
+app.get('/c/:slug/entries', requireSlug, getEntriesHandler);
+app.post('/c/:slug/entries', requireSlug, postEntriesHandler);
+app.get('/entries', requireToken, getEntriesHandler);
+app.post('/entries', requireToken, postEntriesHandler);
+
+// SSE pour Capucine
+app.get('/c/:slug/events', requireSlug, sseHandler);
 
 // --- Bisou à Bibi via ntfy.sh --------------------------------------------
 // Si NTFY_TOPIC est défini, POST /kiss envoie une notif vers ntfy.sh.
@@ -327,7 +420,7 @@ function buildReplyActions(token) {
   ].join('; ');
 }
 
-app.post('/kiss', requireToken, async (req, res) => {
+async function postKissHandler(req, res) {
   try {
     const data = req.body || {};
     const type = KISS_TYPES[data.type] ? data.type : 'bisou';
@@ -405,10 +498,9 @@ app.post('/kiss', requireToken, async (req, res) => {
     console.error('Erreur POST /kiss :', err);
     return res.status(500).json({ error: 'Impossible d\'envoyer le bisou.' });
   }
-});
+}
 
-// GET stats : compteur + dernières réponses de Bibi
-app.get('/kiss-stats', requireToken, async (req, res) => {
+async function getKissStatsHandler(req, res) {
   try {
     const count = await KissLog.countDocuments({}).catch(() => 0);
     const replies = await BibiReply.find({}).sort({ receivedAt: -1 }).limit(5).lean().catch(() => []);
@@ -416,11 +508,28 @@ app.get('/kiss-stats', requireToken, async (req, res) => {
   } catch (err) {
     return res.status(500).json({ error: 'Erreur stats bisous.' });
   }
-});
+}
+
+async function postRepliesSeenHandler(req, res) {
+  try {
+    await BibiReply.updateMany({ seen: false }, { $set: { seen: true } });
+    return res.json({ ok: true });
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur seen.' });
+  }
+}
+
+// Slug + legacy
+app.post('/c/:slug/kiss', requireSlug, postKissHandler);
+app.get('/c/:slug/kiss-stats', requireSlug, getKissStatsHandler);
+app.post('/c/:slug/replies/seen', requireSlug, postRepliesSeenHandler);
+app.post('/kiss', requireToken, postKissHandler);
+app.get('/kiss-stats', requireToken, getKissStatsHandler);
+app.post('/replies/seen', requireToken, postRepliesSeenHandler);
 
 // POST /reply : appelé depuis les action buttons ntfy de Bibi.
-// Authent par query param ?t=<token> (compat ntfy qui ne sait pas envoyer
-// d'en-tête Authorization).
+// Authent par query param ?t=<token>. Sur succès, broadcast SSE à
+// Capucine pour affichage temps réel.
 app.post('/reply', async (req, res) => {
   try {
     if (sharedToken) {
@@ -434,20 +543,20 @@ app.post('/reply', async (req, res) => {
       return res.status(400).json({ error: 'type invalide' });
     }
     const reply = await BibiReply.create({ type, label: REPLY_TYPES[type].label });
+
+    // Push SSE temps réel chez Capucine
+    if (capucineSlug) {
+      broadcastToSlug(capucineSlug, 'bibi-reply', {
+        type: reply.type,
+        label: reply.label,
+        receivedAt: reply.receivedAt,
+      });
+    }
+
     return res.json({ ok: true, reply: { type, label: reply.label, receivedAt: reply.receivedAt } });
   } catch (err) {
     console.error('Erreur POST /reply :', err);
     return res.status(500).json({ error: 'Erreur reply.' });
-  }
-});
-
-// POST /replies/seen : marque toutes les réponses comme vues
-app.post('/replies/seen', requireToken, async (req, res) => {
-  try {
-    await BibiReply.updateMany({ seen: false }, { $set: { seen: true } });
-    return res.json({ ok: true });
-  } catch (err) {
-    return res.status(500).json({ error: 'Erreur seen.' });
   }
 });
 
@@ -462,5 +571,12 @@ app.listen(port, () => {
     console.warn(
       '[!] ALLOWED_ORIGIN non défini : CORS ouvert à toutes les origines.'
     );
+  }
+  if (!capucineSlug) {
+    console.warn(
+      '[!] CAPUCINE_SLUG non défini : la nouvelle auth par URL est désactivée.'
+    );
+  } else {
+    console.log(`[ok] Auth slug active. URL Capucine : /c/${capucineSlug}/`);
   }
 });

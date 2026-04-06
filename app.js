@@ -262,8 +262,17 @@
     'assets/photos-capucine/PHOTO-2026-01-07-21-29-03.jpg',
   ];
 
-  // Base API dynamique: en prod et en local, on utilise la même origine
-  const API_BASE_URL = '';
+  // --- Détection du slug d'auth dans le path ----------------------------
+  // L'URL "propre" est /c/<slug>/... — le slug fait office d'authentification.
+  // Tout est préfixé automatiquement, plus besoin de token localStorage.
+  function detectSlug() {
+    try {
+      const m = (window.location.pathname || '').match(/^\/c\/([a-zA-Z0-9_-]+)/);
+      return m ? m[1] : null;
+    } catch (_) { return null; }
+  }
+  const CAPUCINE_SLUG = detectSlug();
+  const API_BASE_URL = CAPUCINE_SLUG ? `/c/${CAPUCINE_SLUG}` : '';
 
   // --- Constantes des nouveaux champs --------------------------------------
   const PAIN_ZONES = ['tete','poitrine','ventre','dos','bras-g','bras-d','jambe-g','jambe-d','bassin'];
@@ -310,6 +319,9 @@
     }
   }
   function authHeaders() {
+    // Quand on est sur /c/<slug>/... le slug du path EST l'authentification.
+    // Pas besoin de header — le serveur valide via requireSlug.
+    if (CAPUCINE_SLUG) return {};
     const t = getApiToken();
     return t ? { Authorization: `Bearer ${t}` } : {};
   }
@@ -2213,6 +2225,70 @@
     });
   }
 
+  // --- (#sse) Réponses Bibi temps réel via Server-Sent Events ------------
+  let sseConnection = null;
+  function setupSse() {
+    if (!CAPUCINE_SLUG) return; // SSE uniquement avec slug auth
+    if (typeof EventSource === 'undefined') return;
+    try {
+      sseConnection = new EventSource(`${API_BASE_URL}/events`);
+      sseConnection.addEventListener('bibi-reply', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          showBibiReplyBanner(data);
+          fetchKissStatsAndRender();
+        } catch (_) {}
+      });
+      sseConnection.onerror = () => {
+        // EventSource se reconnecte automatiquement
+      };
+    } catch (_) {}
+  }
+
+  const REPLY_LABELS = {
+    love:   { emoji: '❤️',  text: "Bibi t'aime fort" },
+    hug:    { emoji: '🤗',  text: "Bibi t'envoie un câlin" },
+    call:   { emoji: '📞',  text: 'Bibi va t\'appeler' },
+    coming: { emoji: '🚗',  text: 'Bibi arrive' },
+    here:   { emoji: '🌸',  text: 'Bibi est avec toi' },
+  };
+  function showBibiReplyBanner(reply) {
+    const meta = REPLY_LABELS[reply.type] || { emoji: '💌', text: reply.label || 'Bibi' };
+    let banner = document.getElementById('bibi-reply-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'bibi-reply-banner';
+      banner.className = 'bibi-reply-banner';
+      document.body.appendChild(banner);
+    }
+    banner.innerHTML = '';
+    const emoji = document.createElement('div');
+    emoji.className = 'bibi-reply-emoji';
+    emoji.textContent = meta.emoji;
+    const text = document.createElement('div');
+    text.className = 'bibi-reply-text';
+    text.textContent = meta.text;
+    banner.appendChild(emoji);
+    banner.appendChild(text);
+    // Force reflow puis show
+    void banner.offsetWidth;
+    banner.classList.add('is-visible');
+
+    if (navigator.vibrate) {
+      try { navigator.vibrate([60, 30, 60, 30, 100]); } catch (_) {}
+    }
+    if (banner._timeout) clearTimeout(banner._timeout);
+    banner._timeout = setTimeout(() => {
+      banner.classList.remove('is-visible');
+    }, 7000);
+
+    // Tap pour fermer
+    banner.onclick = () => {
+      banner.classList.remove('is-visible');
+      if (banner._timeout) clearTimeout(banner._timeout);
+    };
+  }
+
   // --- Indicateur de synchro -----------------------------------------------
   function setSyncState(state) {
     const el = document.getElementById('sync-indicator');
@@ -2268,6 +2344,7 @@
     setupSettings();
     setupEveningRitual();
     setupKissModule();
+    setupSse();
 
     const tabButtons = document.querySelectorAll('.tab-button');
     tabButtons.forEach((btn) => {

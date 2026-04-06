@@ -94,8 +94,10 @@
       }
     </style>
 
-    <!-- PWA -->
-    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- PWA : manifest relatif → résolution selon le path courant.
+         Sur /c/<slug>/  → charge /c/<slug>/manifest.webmanifest (dynamique avec scope/start_url corrects).
+         Sur /            → charge /manifest.webmanifest (legacy). -->
+    <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#ee2b5b" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
