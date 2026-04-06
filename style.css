@@ -688,64 +688,100 @@ body.soft-day .soft-day-hide { display: none !important; }
   box-shadow: 0 2px 6px rgba(0,0,0,0.2);
 }
 
-/* Modal --------------------------------------------------------------- */
+/* Modal nuit étoilée (style rituel du soir) ----------------------------- */
 .kiss-modal {
   position: fixed;
   inset: 0;
   z-index: 80;
+  background: radial-gradient(ellipse at center top, #1a1f4a 0%, #0a0d2a 70%, #050818 100%);
+  color: #fff;
+  overflow-y: auto;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 16px;
+  justify-content: flex-start;
+  padding: 60px 24px 32px;
+  animation: kiss-modal-in 0.4s ease-out;
 }
 .kiss-modal.hidden { display: none; }
-.kiss-modal-backdrop {
+@keyframes kiss-modal-in {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+.kiss-modal::before {
+  content: "";
   position: absolute;
   inset: 0;
-  background: rgba(20, 5, 15, 0.55);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
-.kiss-modal-card {
-  position: relative;
-  width: 100%;
-  max-width: 380px;
-  max-height: 90vh;
-  overflow-y: auto;
-  background: #fff;
-  border-radius: 28px;
-  padding: 28px 22px 22px;
-  box-shadow: 0 30px 80px rgba(238, 43, 91, 0.35);
-  text-align: center;
-  animation: kiss-modal-in 0.35s cubic-bezier(0.22, 1.2, 0.36, 1);
-}
-@keyframes kiss-modal-in {
-  0%   { transform: translateY(20px) scale(0.94); opacity: 0; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
+  background-image:
+    radial-gradient(2px 2px at 12% 18%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 28% 42%, #fff, transparent),
+    radial-gradient(2px 2px at 55% 12%, #fff, transparent),
+    radial-gradient(1px 1px at 71% 31%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 86% 24%, #fff, transparent),
+    radial-gradient(1px 1px at 18% 62%, #fff, transparent),
+    radial-gradient(1.5px 1.5px at 44% 78%, #fff, transparent),
+    radial-gradient(2px 2px at 78% 68%, #fff, transparent),
+    radial-gradient(1px 1px at 92% 84%, #fff, transparent);
+  opacity: 0.85;
+  animation: twinkle 4s ease-in-out infinite;
+  pointer-events: none;
 }
 .kiss-modal-close {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 36px;
-  height: 36px;
+  top: 18px;
+  right: 18px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: #fde4ec;
+  background: rgba(255, 255, 255, 0.12);
   border: none;
+  color: #fff;
   font-size: 22px;
-  color: #ee2b5b;
   cursor: pointer;
+  z-index: 2;
 }
-.kiss-modal-heart-wrap {
+.kiss-modal-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
   display: flex;
-  justify-content: center;
-  margin-bottom: 8px;
+  flex-direction: column;
+  align-items: center;
+}
+.kiss-modal-counter {
+  font-size: 12px;
+  color: #fde6f0;
+  opacity: 0.7;
+  margin-bottom: 18px;
+  letter-spacing: 0.3px;
+}
+.kiss-photo-circle-wrap {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin-bottom: 22px;
+}
+.kiss-photo-circle {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 60px rgba(255, 220, 180, 0.4), 0 0 120px rgba(255, 180, 220, 0.2);
 }
 .kiss-modal-heart {
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
   font-size: 56px;
   display: inline-block;
   animation: heart-beat 1.4s ease-in-out infinite;
   transform-origin: center;
+  filter: drop-shadow(0 6px 16px rgba(238, 43, 91, 0.55));
 }
 @keyframes heart-beat {
   0%, 100% { transform: scale(1); }
@@ -759,77 +795,113 @@ body.soft-day .soft-day-hide { display: none !important; }
 }
 @keyframes heart-launch {
   0%   { transform: scale(1) translateY(0); opacity: 1; }
-  30%  { transform: scale(1.4) translateY(-6px); opacity: 1; }
-  100% { transform: scale(2.2) translateY(-160px); opacity: 0; }
+  30%  { transform: scale(1.4) translateY(-12px); opacity: 1; }
+  100% { transform: scale(2.4) translateY(-220px); opacity: 0; }
 }
-.kiss-modal-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1b0d11;
-  margin-bottom: 4px;
-}
-.kiss-modal-counter {
-  font-size: 12px;
-  color: #9a4c5f;
-  margin-bottom: 18px;
-  min-height: 16px;
+.kiss-modal-subtitle {
+  font-size: 17px;
+  line-height: 1.5;
+  font-style: italic;
+  color: #fde6f0;
+  margin-bottom: 26px;
 }
 
-.kiss-types {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-bottom: 14px;
+.kiss-send-btn {
+  width: 100%;
+  max-width: 320px;
+  padding: 18px 32px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #ff6b9d 0%, #ee2b5b 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  box-shadow: 0 14px 36px rgba(238, 43, 91, 0.55);
+  transition: transform 0.15s ease, opacity 0.2s ease;
+  margin-bottom: 22px;
 }
-.kiss-type-btn {
-  background: #fff5f7;
-  border: 2px solid transparent;
-  border-radius: 18px;
-  padding: 14px 8px;
+.kiss-send-btn:active { transform: scale(0.97); }
+.kiss-send-btn[disabled] { opacity: 0.5; cursor: wait; }
+
+/* Pastilles types — discrètes et alignées sous le bouton ---------------- */
+.kiss-types-pills {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
+  gap: 14px;
+  justify-content: center;
+  margin-bottom: 22px;
+}
+.kiss-pill {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 22px;
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
-.kiss-type-btn:hover { background: #ffe4ec; }
-.kiss-type-btn.is-selected {
-  background: #fff;
-  border-color: #ee2b5b;
-  box-shadow: 0 6px 18px rgba(238, 43, 91, 0.25);
+.kiss-pill:hover {
+  background: rgba(255, 255, 255, 0.12);
   transform: translateY(-2px);
 }
-.kiss-type-emoji { font-size: 26px; }
-.kiss-type-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: #6e4654;
+.kiss-pill.is-selected {
+  background: rgba(238, 43, 91, 0.35);
+  border-color: #ff6b9d;
+  box-shadow: 0 0 24px rgba(238, 43, 91, 0.55), 0 6px 18px rgba(238, 43, 91, 0.4);
+  transform: translateY(-2px) scale(1.1);
 }
 
+/* Toggle "+ ajouter un mot ou une photo" ------------------------------- */
+.kiss-extras-toggle {
+  background: none;
+  border: none;
+  color: rgba(253, 230, 240, 0.65);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  margin-bottom: 12px;
+}
+.kiss-extras-toggle:hover { color: #fde6f0; }
+.kiss-extras {
+  width: 100%;
+  max-width: 320px;
+  margin-bottom: 16px;
+}
+.kiss-extras.hidden { display: none; }
 .kiss-message {
   width: 100%;
-  border: 1.5px solid #fde4ec;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
   border-radius: 14px;
   padding: 10px 12px;
   font-family: inherit;
   font-size: 13px;
-  color: #1b0d11;
+  color: #fff;
   resize: none;
-  margin-bottom: 12px;
-  background: #fffafc;
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
+.kiss-message::placeholder { color: rgba(253, 230, 240, 0.5); }
 .kiss-message:focus {
   outline: none;
-  border-color: #ee2b5b;
+  border-color: #ff6b9d;
+  background: rgba(255, 255, 255, 0.1);
 }
-
 .kiss-photo-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 16px;
   flex-wrap: wrap;
+  justify-content: center;
 }
 .kiss-photo-btn {
   display: inline-flex;
@@ -837,11 +909,12 @@ body.soft-day .soft-day-hide { display: none !important; }
   gap: 6px;
   padding: 8px 14px;
   border-radius: 999px;
-  background: #fde4ec;
-  color: #ee2b5b;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 .kiss-photo-preview {
   width: 48px;
@@ -849,65 +922,55 @@ body.soft-day .soft-day-hide { display: none !important; }
   border-radius: 12px;
   background-size: cover;
   background-position: center;
-  border: 2px solid #fde4ec;
+  border: 2px solid rgba(255, 255, 255, 0.25);
 }
 .kiss-photo-remove {
-  background: #fde4ec;
+  background: rgba(255, 255, 255, 0.15);
   border: none;
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  color: #ee2b5b;
+  color: #fff;
   font-size: 16px;
   cursor: pointer;
 }
 
-.kiss-send-btn {
-  width: 100%;
-  padding: 14px;
-  border-radius: 999px;
-  border: none;
-  background: linear-gradient(135deg, #ff6b9d 0%, #ee2b5b 100%);
-  color: #fff;
-  font-weight: 700;
-  font-size: 15px;
-  cursor: pointer;
-  box-shadow: 0 10px 24px rgba(238, 43, 91, 0.35);
-  transition: transform 0.15s ease, opacity 0.2s ease;
-}
-.kiss-send-btn:active { transform: scale(0.97); }
-.kiss-send-btn[disabled] { opacity: 0.5; cursor: wait; }
-
+/* Réponses Bibi -------------------------------------------------------- */
 .kiss-replies {
-  margin-top: 18px;
+  margin-top: 16px;
   text-align: left;
-  background: #fff5f7;
-  border-radius: 14px;
-  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  padding: 14px 16px;
+  width: 100%;
+  max-width: 320px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 .kiss-replies.hidden { display: none; }
 .kiss-replies-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  color: #ee2b5b;
-  margin-bottom: 8px;
+  color: #ff9bbb;
+  margin-bottom: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.6px;
 }
 .kiss-reply-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 8px 0;
-  border-bottom: 1px dashed #fce4ec;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   font-size: 13px;
-  color: #1b0d11;
+  color: #fde6f0;
 }
 .kiss-reply-item:last-child { border-bottom: none; }
 .kiss-reply-emoji { font-size: 18px; }
 .kiss-reply-time {
   font-size: 10px;
-  color: #9a4c5f;
+  color: rgba(253, 230, 240, 0.55);
   margin-left: auto;
 }
 

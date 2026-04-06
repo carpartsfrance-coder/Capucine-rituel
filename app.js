@@ -1921,9 +1921,7 @@
     if (!modal) return;
     modal.classList.remove('hidden');
     selectedKissType = 'bisou';
-    document.querySelectorAll('.kiss-type-btn').forEach((b) => {
-      b.classList.toggle('is-selected', b.dataset.type === 'bisou');
-    });
+    applyKissTypeUI('bisou');
     const msg = document.getElementById('kiss-message');
     if (msg) msg.value = '';
     pendingPhotoBase64 = null;
@@ -1931,12 +1929,43 @@
     const rem = document.getElementById('kiss-photo-remove');
     if (prev) { prev.style.backgroundImage = ''; prev.classList.add('hidden'); }
     if (rem) rem.classList.add('hidden');
+    const extras = document.getElementById('kiss-extras');
+    if (extras) extras.classList.add('hidden');
     const heart = document.getElementById('kiss-modal-heart');
     if (heart) {
       heart.classList.remove('is-launching');
-      heart.textContent = getKissEmojiForHour();
+      heart.textContent = '💋';
+    }
+    // Photo de Capucine du jour dans le cercle
+    const circle = document.getElementById('kiss-photo-circle');
+    if (circle) {
+      try {
+        const todayKey = formatDate(new Date());
+        const url = getSuccessImageForDate(todayKey);
+        circle.style.backgroundImage = `url('${url}')`;
+      } catch (_) {}
     }
     fetchKissStatsAndRender();
+  }
+
+  // Met à jour le sous-titre, le label du bouton et l'emoji selon le type
+  const KISS_UI = {
+    bisou: { heart: '💋', subtitle: 'Un bisou tout doux pour Bibi', btn: '💋 Envoyer un bisou' },
+    calin: { heart: '🤗', subtitle: 'Un gros câlin tout chaud',     btn: '🤗 Envoyer un câlin' },
+    pense: { heart: '🌸', subtitle: 'Pense fort à Bibi en ce moment', btn: '🌸 Envoyer ma pensée' },
+    force: { heart: '💪', subtitle: 'Demander un peu de force à Bibi', btn: '💪 Envoyer ce signal' },
+  };
+  function applyKissTypeUI(type) {
+    const conf = KISS_UI[type] || KISS_UI.bisou;
+    document.querySelectorAll('.kiss-pill').forEach((b) =>
+      b.classList.toggle('is-selected', b.dataset.type === type)
+    );
+    const heart = document.getElementById('kiss-modal-heart');
+    if (heart) heart.textContent = conf.heart;
+    const sub = document.getElementById('kiss-modal-subtitle');
+    if (sub) sub.textContent = conf.subtitle;
+    const label = document.getElementById('kiss-send-label');
+    if (label) label.textContent = conf.btn;
   }
   function closeKissModal() {
     const modal = document.getElementById('kiss-modal');
@@ -2117,13 +2146,10 @@
       const backdrop = modal.querySelector('.kiss-modal-backdrop');
       if (backdrop) backdrop.addEventListener('click', closeKissModal);
     }
-    document.querySelectorAll('.kiss-type-btn').forEach((btn) => {
+    document.querySelectorAll('.kiss-pill').forEach((btn) => {
       btn.addEventListener('click', () => {
         selectedKissType = btn.dataset.type;
-        document.querySelectorAll('.kiss-type-btn').forEach((b) =>
-          b.classList.toggle('is-selected', b === btn)
-        );
-        // mini bounce sur le coeur central
+        applyKissTypeUI(selectedKissType);
         const heart = document.getElementById('kiss-modal-heart');
         if (heart) {
           heart.style.transform = 'scale(1.25)';
@@ -2131,6 +2157,16 @@
         }
       });
     });
+    const extrasToggle = document.getElementById('kiss-extras-toggle');
+    const extras = document.getElementById('kiss-extras');
+    if (extrasToggle && extras) {
+      extrasToggle.addEventListener('click', () => {
+        extras.classList.toggle('hidden');
+        extrasToggle.textContent = extras.classList.contains('hidden')
+          ? '+ ajouter un mot ou une photo'
+          : '− masquer';
+      });
+    }
     if (sendBtn) {
       sendBtn.addEventListener('click', () => {
         sendKiss({
