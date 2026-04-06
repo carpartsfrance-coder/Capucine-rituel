@@ -1573,7 +1573,9 @@
     const glass = document.getElementById('water-glass');
     const cb = document.getElementById('drank1L');
     if (!glass || !cb) return;
-    glass.addEventListener('click', () => {
+    glass.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       cb.checked = !cb.checked;
       syncWaterGlass();
       debouncedAutoSave();
@@ -1935,6 +1937,21 @@
   async function init() {
     captureTokenFromHash();
     registerServiceWorker();
+
+    // Déplace les overlays fixed hors de la carte max-w-md (qui a
+    // overflow-hidden) pour qu'ils couvrent toute la fenêtre.
+    [
+      'success-overlay',
+      'detail-overlay',
+      'edit-overlay',
+      'evening-overlay',
+      'settings-overlay',
+    ].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el && el.parentElement !== document.body) {
+        document.body.appendChild(el);
+      }
+    });
 
     // Tente de renvoyer les entrées en attente quand la connexion revient
     // ou quand l'utilisatrice revient sur l'onglet.
