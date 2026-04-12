@@ -2285,6 +2285,219 @@
     }
   }
 
+  // === MOCHI : mascotte kawaii interactive ===
+  let mochiState = 'idle';
+  let mochiIdleTimer = null;
+  let mochiBlinkInterval = null;
+  let mochiAnimTimeout = null;
+
+  function setMochiEyes(state) {
+    const eyes = document.getElementById('mochi-eyes');
+    const eyesClosed = document.getElementById('mochi-eyes-closed');
+    const eyesSad = document.getElementById('mochi-eyes-sad');
+    const eyesStar = document.getElementById('mochi-eyes-star');
+    const eyesSleep = document.getElementById('mochi-eyes-sleep');
+    const mouth = document.getElementById('mochi-mouth');
+    const mouthSad = document.getElementById('mochi-mouth-sad');
+    const mouthSleep = document.getElementById('mochi-mouth-sleep');
+    const armsHug = document.getElementById('mochi-arms-hug');
+    const zzz = document.getElementById('mochi-zzz');
+
+    // Reset all
+    [eyes, eyesClosed, eyesSad, eyesStar, eyesSleep].forEach(
+      (el) => { if (el) el.style.display = 'none'; }
+    );
+    [mouthSad, mouthSleep].forEach(
+      (el) => { if (el) el.style.display = 'none'; }
+    );
+    if (mouth) mouth.style.display = '';
+    if (armsHug) armsHug.style.display = 'none';
+    if (zzz) zzz.style.display = 'none';
+
+    switch (state) {
+      case 'blink':
+        if (eyesClosed) eyesClosed.style.display = '';
+        break;
+      case 'sad':
+        if (eyesSad) eyesSad.style.display = '';
+        if (mouth) mouth.style.display = 'none';
+        if (mouthSad) mouthSad.style.display = '';
+        if (armsHug) armsHug.style.display = '';
+        break;
+      case 'star':
+        if (eyesStar) eyesStar.style.display = '';
+        break;
+      case 'sleep':
+        if (eyesSleep) eyesSleep.style.display = '';
+        if (mouth) mouth.style.display = 'none';
+        if (mouthSleep) mouthSleep.style.display = '';
+        if (zzz) zzz.style.display = '';
+        break;
+      default: // normal
+        if (eyes) eyes.style.display = '';
+        break;
+    }
+  }
+
+  function setMochiState(newState, duration) {
+    const container = document.getElementById('mochi-container');
+    if (!container) return;
+
+    // Remove old state class
+    container.className = 'mochi-container';
+    mochiState = newState;
+
+    // Force reflow pour relancer l'animation
+    void container.offsetWidth;
+    container.classList.add('state-' + newState);
+
+    // Set eyes based on state
+    if (newState === 'sad') setMochiEyes('sad');
+    else if (newState === 'sleep') setMochiEyes('sleep');
+    else if (newState === 'big-jump' || newState === 'dance') setMochiEyes('star');
+    else setMochiEyes('normal');
+
+    // Auto return to idle after duration
+    if (mochiAnimTimeout) clearTimeout(mochiAnimTimeout);
+    if (duration) {
+      mochiAnimTimeout = setTimeout(() => {
+        setMochiState('idle');
+      }, duration);
+    }
+
+    resetMochiIdleTimer();
+  }
+
+  function mochiShowHeart() {
+    const heart = document.getElementById('mochi-heart');
+    if (!heart) return;
+    heart.classList.remove('show');
+    void heart.offsetWidth;
+    heart.classList.add('show');
+    setTimeout(() => heart.classList.remove('show'), 1000);
+  }
+
+  function mochiBlink() {
+    if (mochiState !== 'idle' && mochiState !== 'sit') return;
+    setMochiEyes('blink');
+    setTimeout(() => {
+      if (mochiState === 'idle' || mochiState === 'sit') setMochiEyes('normal');
+    }, 150);
+  }
+
+  function resetMochiIdleTimer() {
+    if (mochiIdleTimer) clearTimeout(mochiIdleTimer);
+    mochiIdleTimer = setTimeout(() => {
+      if (mochiState === 'idle') {
+        setMochiState('sit');
+      }
+    }, 30000);
+  }
+
+  function mochiReact(action) {
+    switch (action) {
+      case 'check':
+        setMochiState('jump', 600);
+        mochiShowHeart();
+        break;
+      case 'mood-happy':
+        setMochiState('big-jump', 800);
+        break;
+      case 'mood-sad':
+        setMochiState('sad', 3000);
+        break;
+      case 'all-done':
+        setMochiState('dance', 3000);
+        break;
+      case 'submit':
+        setMochiState('big-jump', 1000);
+        mochiShowHeart();
+        break;
+      case 'sleep':
+        setMochiState('sleep');
+        break;
+      case 'wake':
+        setMochiState('idle');
+        break;
+      default:
+        setMochiState('idle');
+    }
+  }
+
+  function checkAllObjectivesDone() {
+    const checks = ['drank1L', 'medsMorning', 'medsNoon', 'medsEvening', 'mealBreakfast', 'mealLunch', 'mealDinner'];
+    return checks.every((id) => {
+      const el = document.getElementById(id);
+      return el && el.checked;
+    });
+  }
+
+  function setupMochi() {
+    const container = document.getElementById('mochi-container');
+    if (!container) return;
+
+    // Déplace Mochi hors des containers overflow-hidden vers body
+    document.body.appendChild(container);
+
+    // Clignement des yeux toutes les 3-5s
+    mochiBlinkInterval = setInterval(() => {
+      mochiBlink();
+    }, 3000 + Math.random() * 2000);
+
+    // Mode nuit automatique (après 22h, avant 6h)
+    const hour = new Date().getHours();
+    if (hour >= 22 || hour < 6) {
+      mochiReact('sleep');
+    } else {
+      setMochiState('idle');
+    }
+
+    // Réaction quand on clique sur Mochi
+    container.addEventListener('click', () => {
+      if (mochiState === 'sleep') {
+        mochiReact('wake');
+        return;
+      }
+      setMochiState('jump', 600);
+      mochiShowHeart();
+    });
+
+    // Écouter les checkboxes d'objectifs
+    const objectiveIds = ['drank1L', 'medsMorning', 'medsNoon', 'medsEvening', 'mealBreakfast', 'mealLunch', 'mealDinner'];
+    objectiveIds.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('change', () => {
+          if (el.checked) {
+            if (checkAllObjectivesDone()) {
+              mochiReact('all-done');
+            } else {
+              mochiReact('check');
+            }
+          }
+        });
+      }
+    });
+
+    // Écouter le mood
+    document.querySelectorAll('.mood-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const mood = Number(btn.dataset.mood);
+        if (mood >= 4) mochiReact('mood-happy');
+        else if (mood <= 2) mochiReact('mood-sad');
+        else setMochiState('idle');
+      });
+    });
+
+    // Timer idle
+    resetMochiIdleTimer();
+    document.addEventListener('touchstart', resetMochiIdleTimer, { passive: true });
+    document.addEventListener('click', () => {
+      if (mochiState === 'sit') setMochiState('idle');
+      resetMochiIdleTimer();
+    });
+  }
+
   function setupKissModule() {
     const fab = document.getElementById('kiss-fab');
     const fabEmoji = document.getElementById('kiss-fab-emoji');
@@ -2489,6 +2702,7 @@
     setupSymptoms();
     setupSettings();
     setupEveningRitual();
+    setupMochi();
     setupKissModule();
     setupSse();
 
@@ -2583,9 +2797,11 @@
             }
           }
           showSuccessOverlay(allEntries);
+          mochiReact('submit');
         } else {
           // Jour passé : toast de confirmation + retour à aujourd'hui
           showToast('Journée enregistrée avec succès !');
+          mochiReact('submit');
           setTimeout(() => switchToDate(todayKey), 1500);
         }
       });

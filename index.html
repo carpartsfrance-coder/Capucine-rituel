@@ -1774,6 +1774,72 @@
       </div>
     </div>
 
+    <!-- Mochi : mascotte kawaii interactive -->
+    <div id="mochi-container" class="mochi-container" aria-hidden="true">
+      <div id="mochi-heart" class="mochi-heart">💖</div>
+      <svg id="mochi-svg" viewBox="0 0 100 110" width="60" height="66">
+        <!-- Corps blob -->
+        <ellipse id="mochi-body" cx="50" cy="58" rx="34" ry="32" fill="#C4A8E0" />
+        <!-- Ventre clair -->
+        <ellipse cx="50" cy="64" rx="22" ry="20" fill="#E0D0F0" opacity="0.5" />
+        <!-- Joues roses -->
+        <circle id="mochi-cheek-l" cx="28" cy="62" r="7" fill="#FFB6C1" opacity="0.6" />
+        <circle id="mochi-cheek-r" cx="72" cy="62" r="7" fill="#FFB6C1" opacity="0.6" />
+        <!-- Yeux -->
+        <g id="mochi-eyes">
+          <ellipse id="mochi-eye-l" cx="38" cy="52" rx="5.5" ry="6.5" fill="#2D1B33" />
+          <ellipse id="mochi-eye-r" cx="62" cy="52" rx="5.5" ry="6.5" fill="#2D1B33" />
+          <!-- Reflets -->
+          <circle cx="40" cy="49" r="2" fill="white" opacity="0.9" />
+          <circle cx="64" cy="49" r="2" fill="white" opacity="0.9" />
+        </g>
+        <!-- Yeux fermés (clignement) -->
+        <g id="mochi-eyes-closed" style="display:none">
+          <line x1="32" y1="52" x2="44" y2="52" stroke="#2D1B33" stroke-width="2.5" stroke-linecap="round" />
+          <line x1="56" y1="52" x2="68" y2="52" stroke="#2D1B33" stroke-width="2.5" stroke-linecap="round" />
+        </g>
+        <!-- Yeux tristes -->
+        <g id="mochi-eyes-sad" style="display:none">
+          <ellipse cx="38" cy="54" rx="5" ry="5.5" fill="#2D1B33" />
+          <ellipse cx="62" cy="54" rx="5" ry="5.5" fill="#2D1B33" />
+          <circle cx="40" cy="51" r="1.8" fill="white" opacity="0.9" />
+          <circle cx="64" cy="51" r="1.8" fill="white" opacity="0.9" />
+          <!-- Petite larme -->
+          <ellipse cx="44" cy="60" rx="2" ry="2.5" fill="#89CFF0" opacity="0.7" />
+        </g>
+        <!-- Yeux étoiles -->
+        <g id="mochi-eyes-star" style="display:none">
+          <text x="33" y="57" font-size="14" text-anchor="middle">⭐</text>
+          <text x="62" y="57" font-size="14" text-anchor="middle">⭐</text>
+        </g>
+        <!-- Yeux endormis -->
+        <g id="mochi-eyes-sleep" style="display:none">
+          <path d="M32,52 Q38,48 44,52" stroke="#2D1B33" stroke-width="2" fill="none" stroke-linecap="round" />
+          <path d="M56,52 Q62,48 68,52" stroke="#2D1B33" stroke-width="2" fill="none" stroke-linecap="round" />
+        </g>
+        <!-- Bouche souriante -->
+        <path id="mochi-mouth" d="M42,68 Q50,76 58,68" stroke="#2D1B33" stroke-width="2" fill="none" stroke-linecap="round" />
+        <!-- Bouche triste -->
+        <path id="mochi-mouth-sad" d="M42,72 Q50,66 58,72" stroke="#2D1B33" stroke-width="2" fill="none" stroke-linecap="round" style="display:none" />
+        <!-- Bouche endormie -->
+        <ellipse id="mochi-mouth-sleep" cx="50" cy="70" rx="4" ry="3" fill="#2D1B33" opacity="0.4" style="display:none" />
+        <!-- Pattes -->
+        <rect id="mochi-paw-l" x="34" y="86" width="10" height="8" rx="5" fill="#B090D0" />
+        <rect id="mochi-paw-r" x="56" y="86" width="10" height="8" rx="5" fill="#B090D0" />
+        <!-- Bras (pour câlin — caché par défaut) -->
+        <g id="mochi-arms-hug" style="display:none">
+          <rect x="14" y="50" width="10" height="18" rx="5" fill="#C4A8E0" transform="rotate(-15 19 59)" />
+          <rect x="76" y="50" width="10" height="18" rx="5" fill="#C4A8E0" transform="rotate(15 81 59)" />
+        </g>
+        <!-- Zzz (pour sommeil — caché par défaut) -->
+        <g id="mochi-zzz" style="display:none">
+          <text x="70" y="35" font-size="12" fill="#9B7FC4" opacity="0.8" font-weight="bold">z</text>
+          <text x="78" y="25" font-size="10" fill="#9B7FC4" opacity="0.6" font-weight="bold">z</text>
+          <text x="84" y="17" font-size="8" fill="#9B7FC4" opacity="0.4" font-weight="bold">z</text>
+        </g>
+      </svg>
+    </div>
+
     <script src="app.js" defer></script>
   </body>
 </html>

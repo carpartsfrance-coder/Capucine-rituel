@@ -3,7 +3,7 @@
  * background sync pour les POST en attente, et notifications
  * de rappel médicaments pilotées depuis le client.
  */
-const CACHE_VERSION = 'capucine-v3';
+const CACHE_VERSION = 'capucine-v4';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const ASSETS_CACHE = `${CACHE_VERSION}-assets`;
 
