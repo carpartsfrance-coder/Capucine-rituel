@@ -1,6 +1,9 @@
 (function () {
   const STORAGE_KEY = 'capucine_rituel_journal_v1';
 
+  // Date actuellement ciblée par le formulaire (aujourd'hui par défaut)
+  let selectedFormDate = formatDate(new Date());
+
   const TASK_FIELDS = [
     'drank1L',
     'medsMorning',
@@ -891,20 +894,106 @@
     });
   }
 
-  function populateTodayDate() {
+  function populateTodayDate(dateStr) {
     const todayDateEl = document.getElementById('today-date');
-    const today = new Date();
-    const human = today.toLocaleDateString('fr-FR', {
+    const datePicker = document.getElementById('form-date-picker');
+    const dateLabel = document.getElementById('date-picker-label');
+
+    const todayKey = formatDate(new Date());
+    const targetKey = dateStr || todayKey;
+    selectedFormDate = targetKey;
+
+    const targetDate = new Date(targetKey + 'T12:00:00');
+    const human = targetDate.toLocaleDateString('fr-FR', {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
       year: 'numeric',
     });
+
+    const isToday = targetKey === todayKey;
+
     if (todayDateEl) {
-      todayDateEl.textContent = `Aujourd'hui : ${human}`;
+      todayDateEl.textContent = isToday
+        ? `Aujourd'hui : ${human}`
+        : human;
     }
-    const todayKey = formatDate(today);
-    setDailyQuote(todayKey);
+
+    if (datePicker) {
+      datePicker.value = targetKey;
+      datePicker.max = todayKey;
+    }
+
+    if (dateLabel) {
+      dateLabel.classList.toggle('hidden', isToday);
+    }
+
+    document.body.classList.toggle('past-day-mode', !isToday);
+
+    setDailyQuote(targetKey);
+  }
+
+  function resetTodayForm() {
+    document.getElementById('drank1L').checked = false;
+    document.getElementById('medsMorning').checked = false;
+    document.getElementById('medsNoon').checked = false;
+    document.getElementById('medsEvening').checked = false;
+    document.getElementById('mealBreakfast').checked = false;
+    document.getElementById('mealLunch').checked = false;
+    document.getElementById('mealDinner').checked = false;
+    document.getElementById('weightKg').value = '';
+    document.getElementById('bpSystolic').value = '';
+    document.getElementById('bpDiastolic').value = '';
+    document.getElementById('fatigue').checked = false;
+    document.getElementById('breathless').checked = false;
+    const setIfExists = (id, val) => { const e = document.getElementById(id); if (e) e.checked = val; };
+    setIfExists('nausea', false);
+    setIfExists('dizziness', false);
+    setIfExists('contractions', false);
+    const painEl = document.getElementById('painLevel');
+    if (painEl) { painEl.value = '0'; updatePainLabel(); }
+    document.querySelectorAll('.body-zone').forEach((el) => el.classList.remove('is-selected'));
+    renderCustomTags([]);
+    const moodValueInput = document.getElementById('moodValue');
+    if (moodValueInput) moodValueInput.value = '';
+    document.querySelectorAll('.mood-btn').forEach((btn) => btn.classList.remove('selected'));
+    const sleepYes = document.getElementById('sleep-yes');
+    const sleepNo = document.getElementById('sleep-no');
+    const sleepNightmare = document.getElementById('sleep-nightmare');
+    if (sleepYes) sleepYes.checked = false;
+    if (sleepNo) sleepNo.checked = false;
+    if (sleepNightmare) sleepNightmare.checked = false;
+    document.getElementById('notes').value = '';
+    syncWaterGlass();
+    applySoftDayMode(null);
+  }
+
+  function switchToDate(dateStr) {
+    const todayKey = formatDate(new Date());
+    if (dateStr > todayKey) return;
+
+    // Sauvegarder la date précédente avant de changer
+    if (typeof debouncedAutoSave !== 'undefined' && debouncedAutoSave.flush) {
+      debouncedAutoSave.flush();
+    }
+
+    populateTodayDate(dateStr);
+
+    const entries = loadEntries();
+    const existing = entries.find((e) => e.date === dateStr);
+    if (existing) {
+      populateTodayFromEntry(existing);
+      updateTodaySummary(existing);
+    } else {
+      resetTodayForm();
+      updateTodaySummary({});
+    }
+
+    // Changer le texte du bouton tab
+    const tabBtn = document.querySelector('[data-tab="today"]');
+    if (tabBtn) {
+      tabBtn.textContent = dateStr === todayKey ? "Aujourd'hui" : 'Jour passé';
+    }
   }
 
   function populateTodayFromEntry(entry) {
@@ -969,8 +1058,7 @@
   }
 
   function getTodayEntryFromForm() {
-    const today = new Date();
-    const dateKey = formatDate(today);
+    const dateKey = selectedFormDate || formatDate(new Date());
 
     const drank1L = document.getElementById('drank1L').checked;
     const medsMorning = document.getElementById('medsMorning').checked;
@@ -1045,7 +1133,12 @@
     setSyncState('syncing');
     const updatedEntries = await saveEntryToBackend(entry);
     setSyncState(navigator.onLine ? 'synced' : 'offline');
-    updateTodaySummary(entry);
+
+    const todayKey = formatDate(new Date());
+    if (entry.date === todayKey) {
+      updateTodaySummary(entry);
+    }
+
     renderHistory(updatedEntries);
     updateHeaderAndStreak(updatedEntries);
     updateHistoryStats(updatedEntries);
@@ -1503,8 +1596,22 @@
 
   // Auto-save partagée et debouncée pour éviter d'enchaîner plusieurs POST
   // concurrents quand l'utilisatrice coche plusieurs cases d'affilée.
+  function isFormEmpty() {
+    const entry = getTodayEntryFromForm();
+    return !entry.mood && !entry.drank1L && !entry.medsMorning && !entry.medsNoon
+      && !entry.medsEvening && !entry.mealBreakfast && !entry.mealLunch && !entry.mealDinner
+      && !entry.weightKg && !entry.bpSystolic && !entry.fatigue && !entry.breathless
+      && !entry.nausea && !entry.dizziness && !entry.contractions
+      && entry.painLevel === 0 && !entry.painZones.length && !entry.customTags.length
+      && !entry.sleepQuality && !entry.notes;
+  }
+
   const debouncedAutoSave = debounce(
-    () => saveTodayEntryFromForm({ showToast: false }),
+    () => {
+      // Ne pas auto-save un formulaire complètement vide (évite de créer des entrées fantômes)
+      if (isFormEmpty()) return;
+      saveTodayEntryFromForm({ showToast: false });
+    },
     400
   );
 
@@ -2394,21 +2501,54 @@
 
     setupAutoSaveForTodayForm();
 
+    // Date picker : permet de choisir un jour passé à remplir
+    const formDatePicker = document.getElementById('form-date-picker');
+    if (formDatePicker) {
+      formDatePicker.max = formatDate(new Date());
+      formDatePicker.value = formatDate(new Date());
+      formDatePicker.addEventListener('change', () => {
+        const picked = formDatePicker.value;
+        if (picked) switchToDate(picked);
+      });
+    }
+
+    // Bouton "Ajouter un jour manqué" depuis l'historique
+    const addMissedDayBtn = document.getElementById('add-missed-day-btn');
+    if (addMissedDayBtn) {
+      addMissedDayBtn.addEventListener('click', () => {
+        setActiveTab('today');
+        const picker = document.getElementById('form-date-picker');
+        if (picker) {
+          picker.focus();
+          try { picker.showPicker(); } catch (_) { /* fallback: focus suffit */ }
+        }
+      });
+    }
+
     const form = document.getElementById('today-form');
     if (form) {
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         await saveTodayEntryFromForm({ showToast: true });
-        const allEntries = loadEntries();
-        if (isEveningTime()) {
-          const todayKey = formatDate(new Date());
-          const todayEntry = allEntries.find((e) => e.date === todayKey);
-          if (todayEntry) {
-            showEveningRitual(todayEntry);
-            return;
+
+        const todayKey = formatDate(new Date());
+        const isToday = selectedFormDate === todayKey;
+
+        if (isToday) {
+          const allEntries = loadEntries();
+          if (isEveningTime()) {
+            const todayEntry = allEntries.find((e) => e.date === todayKey);
+            if (todayEntry) {
+              showEveningRitual(todayEntry);
+              return;
+            }
           }
+          showSuccessOverlay(allEntries);
+        } else {
+          // Jour passé : toast de confirmation + retour à aujourd'hui
+          showToast('Journée enregistrée avec succès !');
+          setTimeout(() => switchToDate(todayKey), 1500);
         }
-        showSuccessOverlay(allEntries);
       });
     }
 

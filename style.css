@@ -2,6 +2,21 @@
   box-sizing: border-box;
 }
 
+/* --- Date picker pour remplir un jour passé --- */
+#form-date-picker {
+  font-family: inherit;
+}
+#form-date-picker::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+}
+#form-date-picker::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+body.past-day-mode #today-date {
+  color: #ee2b5b;
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;

@@ -141,6 +141,17 @@
             >
               <!-- La date du jour sera remplie en JS -->
             </p>
+            <div class="flex items-center gap-2 mt-1">
+              <input
+                type="date"
+                id="form-date-picker"
+                class="text-xs text-primary bg-white/60 dark:bg-surface-dark rounded-lg px-2 py-1 border border-primary/20 shadow-sm font-display cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/30"
+                max=""
+              />
+              <span id="date-picker-label" class="text-xs text-primary italic hidden">
+                (jour passé)
+              </span>
+            </div>
           </div>
         </div>
         
@@ -720,6 +731,14 @@
 
             <!-- Liste des jours -->
             <div class="flex flex-col gap-3">
+              <button
+                type="button"
+                id="add-missed-day-btn"
+                class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-primary/10 text-primary font-medium text-sm border border-primary/20 hover:bg-primary/20 transition-all mb-1"
+              >
+                <span class="material-symbols-outlined text-lg">calendar_add_on</span>
+                Ajouter un jour manqué
+              </button>
               <p
                 class="text-sm font-bold text-gray-400 uppercase tracking-wider ml-2 mb-1"
               >
