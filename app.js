@@ -1698,8 +1698,10 @@
     if (!('serviceWorker' in navigator)) return;
     window.addEventListener('load', () => {
       navigator.serviceWorker
-        .register('/sw.js')
+        .register('/sw.js', { updateViaCache: 'none' })
         .then((reg) => {
+          // Force la vérification d'une nouvelle version du SW
+          reg.update().catch(() => {});
           // Replanifie les rappels si activés
           rescheduleAllReminders(reg);
         })

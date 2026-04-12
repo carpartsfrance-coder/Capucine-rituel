@@ -106,6 +106,15 @@
 
     <!-- CSS local existant (toast, historique, etc.) -->
     <link rel="stylesheet" href="style.css" />
+
+    <!-- Force SW update : contourne le cache du vieux SW -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          regs.forEach(function(r) { r.update(); });
+        });
+      }
+    </script>
   </head>
   <body
     class="bg-background-light dark:bg-background-dark font-display text-text-main dark:text-white antialiased transition-colors duration-200"

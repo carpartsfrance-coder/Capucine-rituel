@@ -3,7 +3,7 @@
  * background sync pour les POST en attente, et notifications
  * de rappel médicaments pilotées depuis le client.
  */
-const CACHE_VERSION = 'capucine-v4';
+const CACHE_VERSION = 'capucine-v5';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const ASSETS_CACHE = `${CACHE_VERSION}-assets`;
 
@@ -56,13 +56,30 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first pour le shell + assets
+  // Fichiers du shell (index.html, app.js, style.css, sw.js) : network-first
+  // pour toujours avoir la dernière version, fallback cache si offline.
+  const isShellFile = SHELL_FILES.some((f) => url.pathname === f || url.pathname.endsWith(f));
+  if (isShellFile || url.pathname === '/' || url.pathname.endsWith('/')) {
+    event.respondWith(
+      fetch(req)
+        .then((resp) => {
+          if (resp && resp.ok && url.origin === self.location.origin) {
+            const copy = resp.clone();
+            caches.open(SHELL_CACHE).then((c) => c.put(req, copy)).catch(() => null);
+          }
+          return resp;
+        })
+        .catch(() => caches.match(req).then((c) => c || caches.match('/index.html')))
+    );
+    return;
+  }
+
+  // Cache-first pour les assets (images, fonts, etc.)
   event.respondWith(
     caches.match(req).then((cached) => {
       if (cached) return cached;
       return fetch(req)
         .then((resp) => {
-          // Ne cache que les réponses ok et same-origin (évite Tailwind CDN, fonts)
           if (resp && resp.ok && url.origin === self.location.origin) {
             const copy = resp.clone();
             caches.open(ASSETS_CACHE).then((c) => c.put(req, copy)).catch(() => null);
