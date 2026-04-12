@@ -734,12 +734,51 @@
       if (!response.ok) {
         throw new Error('Réponse HTTP non valide');
       }
-      const data = await response.json();
-      if (Array.isArray(data)) {
-        saveEntries(data);
-        // Tente de pousser les entrées en attente (best-effort)
+      const serverData = await response.json();
+      if (Array.isArray(serverData)) {
+        // Fusion : garder les données locales qui n'existent pas sur le serveur
+        const localEntries = loadEntries();
+        const serverDates = new Set(serverData.map((e) => e.date));
+        const localOnly = localEntries.filter((e) => e.date && !serverDates.has(e.date));
+
+        // Si des entrées locales n'existent pas sur le serveur, les pousser
+        if (localOnly.length > 0) {
+          console.log(`Migration : ${localOnly.length} entrée(s) locale(s) à synchroniser.`);
+          for (const entry of localOnly) {
+            try {
+              await fetch(`${API_BASE_URL}/entries`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                body: JSON.stringify(entry),
+              });
+            } catch (_) {
+              // Echec silencieux, sera retenté plus tard
+            }
+          }
+          // Re-fetch pour avoir la version finale du serveur
+          try {
+            const r2 = await fetch(`${API_BASE_URL}/entries`, { headers: { ...authHeaders() } });
+            if (r2.ok) {
+              const finalData = await r2.json();
+              if (Array.isArray(finalData)) {
+                saveEntries(finalData);
+                flushPendingEntries();
+                return finalData;
+              }
+            }
+          } catch (_) {}
+        }
+
+        // Fusion finale : serveur prioritaire, mais on garde les locales non présentes
+        const merged = [...serverData];
+        for (const local of localOnly) {
+          if (!merged.some((e) => e.date === local.date)) {
+            merged.push(local);
+          }
+        }
+        saveEntries(merged);
         flushPendingEntries();
-        return data;
+        return merged;
       }
       return loadEntries();
     } catch (e) {
