@@ -2,6 +2,129 @@
   box-sizing: border-box;
 }
 
+/* === CREATURE RECAP (bilan du jour dans overlay succès) === */
+.creature-recap-card {
+  background: linear-gradient(135deg, #1a0e2e, #1e1235);
+  border-radius: 20px;
+  padding: 20px;
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #e0d0f0;
+}
+.creature-recap-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+.creature-recap-svg {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.creature-recap-svg svg {
+  max-width: 100%;
+  max-height: 100%;
+  filter: drop-shadow(0 0 8px var(--recap-glow, #a855f7));
+}
+.creature-recap-title h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 2px;
+}
+.creature-recap-subtitle {
+  font-size: 0.8rem;
+  color: #9985b0;
+  margin: 0;
+}
+.creature-recap-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.creature-recap-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.creature-recap-line.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+.creature-recap-line.dimmed {
+  opacity: 0.35;
+}
+.creature-recap-line-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+}
+.creature-recap-line-icon {
+  font-size: 1rem;
+  width: 20px;
+  text-align: center;
+}
+.creature-recap-line-xp {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fbbf24;
+  min-width: 40px;
+  text-align: right;
+}
+.creature-recap-line-xp.zero {
+  color: #555;
+}
+.creature-recap-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0 10px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.creature-recap-total span:first-child {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #e0d0f0;
+}
+.creature-recap-total-value {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #fbbf24;
+  text-shadow: 0 0 10px rgba(251,191,36,0.3);
+}
+.creature-recap-bar-wrap {
+  margin-top: 8px;
+}
+.creature-recap-bar-bg {
+  height: 8px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.creature-recap-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #a855f7, #f48fb1);
+  transition: width 1.2s ease;
+  width: 0;
+}
+.creature-recap-bar-label {
+  font-size: 0.7rem;
+  color: #78708a;
+  margin-top: 4px;
+  text-align: right;
+}
+
 /* --- Date picker pour remplir un jour passé --- */
 #form-date-picker {
   font-family: inherit;
@@ -17,26 +140,49 @@ body.past-day-mode #today-date {
   color: #ee2b5b;
 }
 
-/* === MOCHI : mascotte kawaii === */
-.mochi-container {
+/* === CREATURE : mascotte évolutive === */
+.creature-display {
   position: fixed;
   bottom: 160px;
   right: 18px;
   z-index: 45;
-  width: 60px;
-  height: 66px;
+  width: 68px;
+  height: 68px;
   cursor: pointer;
-  animation: mochi-idle 2.5s ease-in-out infinite;
+  animation: creature-idle 2.5s ease-in-out infinite;
   transition: transform 0.3s ease;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
-.mochi-container:active {
+.creature-display:active {
   transform: scale(0.9);
+}
+.creature-svg-wrap {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.creature-svg-wrap svg {
+  max-width: 100%;
+  max-height: 100%;
+  filter: drop-shadow(0 0 6px var(--creature-glow, #a855f7));
+}
+.creature-progress-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
 /* Cœur flottant */
-.mochi-heart {
+.creature-heart {
   position: absolute;
   top: -10px;
   left: 50%;
@@ -44,27 +190,91 @@ body.past-day-mode #today-date {
   font-size: 18px;
   opacity: 0;
   pointer-events: none;
-  transition: none;
+  z-index: 2;
 }
-.mochi-heart.show {
-  animation: mochi-heart-fly 1s ease-out forwards;
+.creature-heart.show {
+  animation: creature-heart-fly 1s ease-out forwards;
 }
 
-/* --- Keyframes --- */
-@keyframes mochi-idle {
+/* XP flottant */
+.creature-xp-float {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  font-weight: 700;
+  color: #fbbf24;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.creature-xp-float.show {
+  animation: creature-xp-fly 1.5s ease-out forwards;
+}
+
+/* --- Creature SVG animations (from dragon-preview) --- */
+@keyframes creature-breathe {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes creature-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+@keyframes creature-wing-flap {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-12deg); }
+  75% { transform: rotate(5deg); }
+}
+@keyframes creature-tail-wag {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(8deg); }
+  75% { transform: rotate(-8deg); }
+}
+@keyframes creature-flame {
+  0%, 100% { transform: scaleY(1) scaleX(1); opacity: 0.9; }
+  33% { transform: scaleY(1.15) scaleX(0.9); opacity: 1; }
+  66% { transform: scaleY(0.9) scaleX(1.1); opacity: 0.8; }
+}
+@keyframes creature-crystal-float {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50% { transform: translateY(-4px); opacity: 1; }
+}
+@keyframes creature-shimmer {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.9; }
+}
+@keyframes creature-egg-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.8; }
+}
+
+/* Animation classes used inside creature SVGs */
+.creature-svg-wrap .breathe { animation: creature-breathe 3s ease-in-out infinite; }
+.creature-svg-wrap .eye-blink { animation: creature-blink 4.5s ease-in-out infinite; }
+.creature-svg-wrap .wing-flap { animation: creature-wing-flap 2.5s ease-in-out infinite; transform-origin: right center; }
+.creature-svg-wrap .wing-flap-right { animation: creature-wing-flap 2.5s ease-in-out infinite reverse; transform-origin: left center; }
+.creature-svg-wrap .tail-wag { animation: creature-tail-wag 2s ease-in-out infinite; transform-origin: left center; }
+.creature-svg-wrap .flame-flicker { animation: creature-flame 0.6s ease-in-out infinite; }
+.creature-svg-wrap .crystal-float { animation: creature-crystal-float 3.5s ease-in-out infinite; }
+.creature-svg-wrap .shimmer { animation: creature-shimmer 2s ease-in-out infinite; }
+.creature-svg-wrap .egg-pulse { animation: creature-egg-pulse 2.5s ease-in-out infinite; }
+
+/* --- Keyframes container --- */
+@keyframes creature-idle {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-4px); }
 }
-
-@keyframes mochi-jump {
+@keyframes creature-jump {
   0% { transform: translateY(0) scale(1); }
   20% { transform: translateY(4px) scale(1.05, 0.92); }
   50% { transform: translateY(-20px) scale(0.95, 1.08); }
   70% { transform: translateY(-5px) scale(1); }
   100% { transform: translateY(0) scale(1); }
 }
-
-@keyframes mochi-big-jump {
+@keyframes creature-big-jump {
   0% { transform: translateY(0) scale(1) rotate(0deg); }
   15% { transform: translateY(5px) scale(1.1, 0.85); }
   45% { transform: translateY(-35px) scale(0.9, 1.15) rotate(-5deg); }
@@ -72,8 +282,7 @@ body.past-day-mode #today-date {
   75% { transform: translateY(-8px) scale(1); }
   100% { transform: translateY(0) scale(1) rotate(0deg); }
 }
-
-@keyframes mochi-dance {
+@keyframes creature-dance {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   15% { transform: translateY(-8px) rotate(-8deg); }
   30% { transform: translateY(0) rotate(8deg); }
@@ -82,59 +291,532 @@ body.past-day-mode #today-date {
   75% { transform: translateY(-8px) rotate(-5deg); }
   90% { transform: translateY(0) rotate(3deg); }
 }
-
-@keyframes mochi-sad-sway {
+@keyframes creature-sad-sway {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   50% { transform: translateY(2px) rotate(-3deg); }
 }
-
-@keyframes mochi-sleep-bob {
+@keyframes creature-sleep-bob {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(3px); }
 }
-
-@keyframes mochi-zzz-float {
-  0% { opacity: 0; transform: translateY(0); }
-  30% { opacity: 0.8; }
-  100% { opacity: 0; transform: translateY(-15px); }
+@keyframes creature-sit {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(1px); }
 }
-
-@keyframes mochi-heart-fly {
+@keyframes creature-heart-fly {
   0% { opacity: 1; transform: translateX(-50%) translateY(0) scale(0.5); }
   50% { opacity: 1; transform: translateX(-50%) translateY(-25px) scale(1.1); }
   100% { opacity: 0; transform: translateX(-50%) translateY(-45px) scale(0.8); }
 }
-
-@keyframes mochi-sit {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(1px); }
+@keyframes creature-xp-fly {
+  0% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  60% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-40px); }
 }
 
-/* --- État classes --- */
-.mochi-container.state-idle { animation: mochi-idle 2.5s ease-in-out infinite; }
-.mochi-container.state-jump { animation: mochi-jump 0.5s ease-out 1; }
-.mochi-container.state-big-jump { animation: mochi-big-jump 0.7s ease-out 1; }
-.mochi-container.state-dance { animation: mochi-dance 1s ease-in-out 3; }
-.mochi-container.state-sad { animation: mochi-sad-sway 3s ease-in-out infinite; }
-.mochi-container.state-sleep { animation: mochi-sleep-bob 4s ease-in-out infinite; }
-.mochi-container.state-sit { animation: mochi-sit 4s ease-in-out infinite; }
+/* --- État classes creature --- */
+.creature-display.creature-state-idle { animation: creature-idle 2.5s ease-in-out infinite; }
+.creature-display.creature-state-jump { animation: creature-jump 0.5s ease-out 1; }
+.creature-display.creature-state-big-jump { animation: creature-big-jump 0.7s ease-out 1; }
+.creature-display.creature-state-dance { animation: creature-dance 1s ease-in-out 3; }
+.creature-display.creature-state-sad { animation: creature-sad-sway 3s ease-in-out infinite; }
+.creature-display.creature-state-sleep { animation: creature-sleep-bob 4s ease-in-out infinite; }
+.creature-display.creature-state-sit { animation: creature-sit 4s ease-in-out infinite; }
 
-/* Zzz animation */
-.mochi-container.state-sleep #mochi-zzz text {
-  animation: mochi-zzz-float 2.5s ease-out infinite;
-}
-.mochi-container.state-sleep #mochi-zzz text:nth-child(2) {
-  animation-delay: 0.8s;
-}
-.mochi-container.state-sleep #mochi-zzz text:nth-child(3) {
-  animation-delay: 1.6s;
-}
-
-/* Cacher mochi quand les modales sont ouvertes */
-body:has(.kiss-modal:not(.hidden)) .mochi-container,
-body:has(#success-overlay:not(.hidden)) .mochi-container,
-body:has(#evening-overlay.is-open) .mochi-container {
+/* Cacher creature quand les modales sont ouvertes */
+body:has(.kiss-modal:not(.hidden)) .creature-display,
+body:has(#success-overlay:not(.hidden)) .creature-display,
+body:has(#evening-overlay.is-open) .creature-display {
   display: none;
+}
+
+/* === CREATURE PANEL (collection view) === */
+.creature-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  transition: opacity 0.3s ease;
+}
+.creature-panel.hidden { display: none; }
+.creature-panel-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.creature-panel-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 85vh;
+  background: linear-gradient(180deg, #1a0e2e, #150b24);
+  border-radius: 24px 24px 0 0;
+  padding: 20px 18px 30px;
+  overflow-y: auto;
+  transform: translateY(100%);
+  transition: transform 0.3s ease;
+  color: #e0d0f0;
+}
+.creature-panel.open .creature-panel-content {
+  transform: translateY(0);
+}
+.creature-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.creature-panel-header h3 {
+  font-size: 1.2rem;
+  background: linear-gradient(135deg, #c084fc, #f9a8d4, #fbbf24);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.creature-panel-close {
+  background: rgba(255,255,255,0.1);
+  border: none;
+  color: #9985b0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+/* Active creature display in panel */
+.creature-active-display {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.creature-active-svg {
+  flex-shrink: 0;
+  width: 90px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.creature-active-svg svg {
+  filter: drop-shadow(0 0 8px var(--theme, #a855f7));
+}
+.creature-active-info {
+  flex: 1;
+  min-width: 0;
+}
+.creature-active-info h4 {
+  font-size: 1rem;
+  color: #e0d0f0;
+  margin: 0 0 4px;
+}
+.creature-stage-name {
+  font-size: 0.85rem;
+  color: #9985b0;
+  margin: 0 0 8px;
+}
+.creature-xp-bar {
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.creature-xp-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+.creature-xp-label {
+  font-size: 0.75rem;
+  color: #78708a;
+  margin: 0;
+}
+
+/* Collection grid */
+.creature-panel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.creature-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 0.3s;
+}
+.creature-card.active {
+  border-color: var(--theme, #a855f7);
+  background: rgba(255,255,255,0.06);
+}
+.creature-card.locked {
+  opacity: 0.5;
+}
+.creature-card-svg {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.creature-card-svg svg {
+  max-width: 100%;
+  max-height: 100%;
+}
+.creature-card-info {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.creature-card-name {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #e0d0f0;
+}
+.creature-card-status {
+  font-size: 0.65rem;
+  color: #78708a;
+}
+.creature-card-status.locked {
+  color: #555;
+}
+.creature-card-badge {
+  font-size: 0.6rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.creature-card-badge.active {
+  background: rgba(34,197,94,0.15);
+  color: #4ade80;
+}
+.creature-card-activate {
+  font-size: 0.65rem;
+  padding: 3px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--theme, #a855f7);
+  background: transparent;
+  color: var(--theme, #a855f7);
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.creature-card-activate:active {
+  background: rgba(255,255,255,0.1);
+}
+
+/* === EVOLUTION OVERLAY (animated) === */
+.evolution-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(13,6,24,0.97);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  overflow: hidden;
+}
+.evolution-overlay.show { opacity: 1; }
+.evolution-overlay.phase-exit { opacity: 0; transition: opacity 0.4s ease; }
+
+.evolution-content {
+  text-align: center;
+  position: relative;
+  padding: 30px;
+  width: 300px;
+}
+
+/* Glow ring behind creature */
+.evo-glow-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 180px;
+  height: 180px;
+  transform: translate(-50%, -70%) scale(0);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--glow-color, #a855f7) 0%, transparent 70%);
+  opacity: 0.25;
+  transition: transform 0.8s ease, opacity 0.8s ease;
+}
+.evolution-overlay.show .evo-glow-ring {
+  transform: translate(-50%, -70%) scale(1);
+  animation: evo-glow-pulse 2s ease-in-out infinite;
+}
+@keyframes evo-glow-pulse {
+  0%, 100% { opacity: 0.2; transform: translate(-50%, -70%) scale(1); }
+  50% { opacity: 0.4; transform: translate(-50%, -70%) scale(1.15); }
+}
+
+/* White flash */
+.evo-flash {
+  position: fixed;
+  inset: 0;
+  background: var(--glow-color, white);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+.evolution-overlay.phase-flash .evo-flash {
+  animation: evo-flash-burst 0.5s ease-out forwards;
+}
+@keyframes evo-flash-burst {
+  0% { opacity: 0; }
+  20% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+
+/* Particles */
+.evo-particles {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.evo-particle {
+  position: absolute;
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(var(--angle)) translateY(0);
+  transition: none;
+}
+.evolution-overlay.phase-reveal .evo-particle {
+  animation: evo-particle-burst 1s ease-out forwards;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes evo-particle-burst {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateY(0) scale(0.5);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateY(calc(var(--distance, 80px) * -1)) scale(1.2);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--angle)) translateY(calc(var(--distance, 80px) * -1.3)) scale(0.3);
+  }
+}
+
+/* Scene: old creature + new creature */
+.evo-scene {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.evo-old-creature, .evo-new-creature {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.evo-old-creature svg, .evo-new-creature svg {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+/* Old creature: visible + shaking, then disappears at flash */
+.evo-old-creature {
+  animation: evo-shake 0.15s ease-in-out infinite alternate;
+  transition: opacity 0.2s, transform 0.3s;
+}
+.evolution-overlay.phase-flash .evo-old-creature {
+  opacity: 0;
+  transform: scale(1.5);
+  animation: none;
+}
+@keyframes evo-shake {
+  0% { transform: translateX(-3px) rotate(-2deg); }
+  100% { transform: translateX(3px) rotate(2deg); }
+}
+
+/* New creature: hidden, then appears with bounce after flash */
+.evo-new-creature {
+  opacity: 0;
+  transform: scale(0);
+}
+.evolution-overlay.phase-reveal .evo-new-creature {
+  animation: evo-new-appear 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes evo-new-appear {
+  0% { opacity: 0; transform: scale(0) rotate(-10deg); }
+  50% { opacity: 1; transform: scale(1.25) rotate(5deg); }
+  70% { transform: scale(0.95) rotate(-2deg); }
+  85% { transform: scale(1.05) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+
+/* New creature entrance dance */
+.evolution-overlay.phase-done .evo-new-creature {
+  animation: evo-dance 0.8s ease-in-out 1;
+}
+@keyframes evo-dance {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  20% { transform: translateY(-10px) rotate(-5deg); }
+  40% { transform: translateY(0) rotate(5deg); }
+  60% { transform: translateY(-8px) rotate(-3deg); }
+  80% { transform: translateY(0) rotate(2deg); }
+}
+
+/* Title, name, subtitle: hidden until phase-done */
+.evo-title-text, .evo-creature-name, .evo-subtitle, .evo-close-btn {
+  position: relative;
+  z-index: 2;
+  opacity: 0;
+  transform: translateY(15px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.evolution-overlay.phase-done .evo-title-text {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0s;
+}
+.evolution-overlay.phase-done .evo-creature-name {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.1s;
+}
+.evolution-overlay.phase-done .evo-subtitle {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.2s;
+}
+.evolution-overlay.phase-done .evo-close-btn {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.35s;
+}
+
+.evo-title-text {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #fbbf24;
+  margin-bottom: 6px;
+  text-shadow: 0 0 20px rgba(251,191,36,0.4);
+}
+.evo-creature-name {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #e0d0f0;
+  margin-bottom: 4px;
+}
+.evo-subtitle {
+  font-size: 0.85rem;
+  color: #9985b0;
+  margin-bottom: 24px;
+}
+.evo-close-btn {
+  background: linear-gradient(135deg, var(--glow-color, #a855f7), #f48fb1);
+  border: none;
+  color: white;
+  padding: 12px 32px;
+  border-radius: 999px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+  transition: opacity 0.4s ease, transform 0.4s ease, box-shadow 0.2s;
+}
+.evo-close-btn:active {
+  transform: translateY(0) scale(0.95) !important;
+}
+
+/* === UNLOCK OVERLAY (egg shake variant) === */
+.unlock-egg-scene {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+.unlock-egg-shake {
+  animation: evo-egg-crack 1s ease-in-out infinite;
+}
+.unlock-egg-shake svg {
+  max-width: 90px;
+  max-height: 90px;
+}
+@keyframes evo-egg-crack {
+  0%, 100% { transform: rotate(0deg); }
+  15% { transform: rotate(-8deg) scale(1.02); }
+  30% { transform: rotate(8deg) scale(1.04); }
+  45% { transform: rotate(-10deg) scale(1.06); }
+  60% { transform: rotate(10deg) scale(1.08); }
+  75% { transform: rotate(-5deg) scale(1.05); }
+  90% { transform: rotate(3deg) scale(1.02); }
+}
+.evolution-overlay.phase-flash .unlock-egg-shake {
+  animation: none;
+  transform: scale(1.5);
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+.evolution-overlay.phase-reveal .unlock-egg-shake {
+  animation: evo-new-appear 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* === UNLOCK TOAST === */
+.creature-unlock-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  background: linear-gradient(135deg, #1a0e2e, #2d1b4e);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 400;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  transition: transform 0.4s ease;
+  color: #e0d0f0;
+}
+.creature-unlock-toast.show {
+  transform: translateX(-50%) translateY(0);
+}
+.creature-unlock-icon {
+  font-size: 2rem;
+}
+.creature-unlock-text {
+  display: flex;
+  flex-direction: column;
+}
+.creature-unlock-text strong {
+  font-size: 0.85rem;
+  color: #fbbf24;
+}
+.creature-unlock-text span {
+  font-size: 0.75rem;
+  color: #9985b0;
 }
 
 body {

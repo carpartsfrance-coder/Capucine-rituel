@@ -3,7 +3,7 @@
  * background sync pour les POST en attente, et notifications
  * de rappel médicaments pilotées depuis le client.
  */
-const CACHE_VERSION = 'capucine-v5';
+const CACHE_VERSION = 'capucine-v6';
 const SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const ASSETS_CACHE = `${CACHE_VERSION}-assets`;
 
@@ -11,6 +11,8 @@ const SHELL_FILES = [
   '/',
   '/index.html',
   '/app.js',
+  '/creature-data.js',
+  '/creature.js',
   '/style.css',
   '/manifest.webmanifest',
   '/assets/turtle-enceinte.png',

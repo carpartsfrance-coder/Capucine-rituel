@@ -560,6 +560,60 @@ app.post('/reply', async (req, res) => {
   }
 });
 
+// --- Creature State (mascotte évolutive) ------------------------------------
+const creatureStateSchema = new mongoose.Schema(
+  {
+    slug: { type: String, unique: true, required: true },
+    activeCollection: { type: String, default: 'dragon' },
+    collections: { type: Object, default: {} },
+    totalDaysTracked: { type: Number, default: 0 },
+    lastXpDate: String,
+  },
+  { timestamps: true }
+);
+const CreatureState = mongoose.model('CreatureState', creatureStateSchema);
+
+async function getCreatureHandler(req, res) {
+  try {
+    const slug = req.params.slug || capucineSlug || '_default';
+    const doc = await CreatureState.findOne({ slug }).lean();
+    if (!doc) return res.json(null);
+    return res.json(doc);
+  } catch (err) {
+    console.error('Erreur GET /creature :', err);
+    return res.status(500).json({ error: 'Erreur creature state.' });
+  }
+}
+
+async function postCreatureHandler(req, res) {
+  try {
+    const slug = req.params.slug || capucineSlug || '_default';
+    const data = req.body || {};
+    const update = {
+      slug,
+      activeCollection: data.activeCollection || 'dragon',
+      collections: data.collections || {},
+      totalDaysTracked: data.totalDaysTracked || 0,
+      lastXpDate: data.lastXpDate || null,
+    };
+    const doc = await CreatureState.findOneAndUpdate({ slug }, update, {
+      new: true,
+      upsert: true,
+      setDefaultsOnInsert: true,
+    });
+    return res.json(doc);
+  } catch (err) {
+    console.error('Erreur POST /creature :', err);
+    return res.status(500).json({ error: 'Erreur creature state.' });
+  }
+}
+
+// Slug + legacy routes
+app.get('/c/:slug/creature', requireSlug, getCreatureHandler);
+app.post('/c/:slug/creature', requireSlug, postCreatureHandler);
+app.get('/creature', requireToken, getCreatureHandler);
+app.post('/creature', requireToken, postCreatureHandler);
+
 app.listen(port, () => {
   console.log(`Serveur backend en écoute sur le port ${port}`);
   if (!sharedToken) {

@@ -1183,6 +1183,21 @@
     updateHistoryStats(updatedEntries);
     renderHeatmap(updatedEntries);
     applySoftDayMode(entry.mood);
+
+    // Award creature XP for today's entry
+    if (entry.date === todayKey && window.CreatureSystem) {
+      const streak = computeStreak(updatedEntries);
+      const result = window.CreatureSystem.awardXp(entry, streak);
+      if (result) {
+        window.CreatureSystem.showXpFloat(result.xpGained);
+        window.CreatureSystem.renderCreature();
+        window.CreatureSystem.updateProgress();
+        if (result.evolved) {
+          setTimeout(() => window.CreatureSystem.checkEvolution(), 800);
+        }
+      }
+    }
+
     if (options.showToast) {
       showToast('Ta journée a bien été enregistrée.');
     }
@@ -1452,6 +1467,127 @@
     }
 
     overlay.classList.remove('hidden');
+
+    // Remplir le bilan créature du jour
+    populateCreatureRecap(entries, streak);
+  }
+
+  function populateCreatureRecap(entries, streak) {
+    const container = document.getElementById('success-creature-recap');
+    if (!container || !window.CREATURE_DATA || !window.CreatureSystem) return;
+
+    const state = window.CreatureSystem.getState();
+    if (!state) return;
+
+    const DATA = window.CREATURE_DATA;
+    const collKey = state.activeCollection;
+    const coll = state.collections[collKey];
+    const collData = DATA.collections[collKey];
+    if (!coll || !collData) return;
+
+    container.classList.remove('hidden');
+
+    // Creature SVG
+    const svgEl = document.getElementById('creature-recap-svg');
+    if (svgEl) {
+      svgEl.innerHTML = collData.stages[coll.stage].svg(50);
+      svgEl.style.setProperty('--recap-glow', collData.glowColor);
+    }
+
+    // Creature name
+    const nameEl = document.getElementById('creature-recap-name');
+    if (nameEl) {
+      nameEl.textContent = collData.emoji + ' ' + collData.stages[coll.stage].name + ' ' + collData.name + ' • ' + coll.xp + ' XP';
+    }
+
+    // Get today's entry to compute detail
+    const todayKey = formatDate(new Date());
+    const todayEntry = entries.find(e => e.date === todayKey) || {};
+
+    // Build line items
+    const lines = [
+      { icon: '💧', label: 'Eau (1L)', done: !!todayEntry.drank1L },
+      { icon: '💊', label: 'Médoc matin', done: !!todayEntry.medsMorning },
+      { icon: '💊', label: 'Médoc midi', done: !!todayEntry.medsNoon },
+      { icon: '💊', label: 'Médoc soir', done: !!todayEntry.medsEvening },
+      { icon: '🍳', label: 'Petit-déjeuner', done: !!todayEntry.mealBreakfast },
+      { icon: '🍽', label: 'Déjeuner', done: !!todayEntry.mealLunch },
+      { icon: '🍽', label: 'Dîner', done: !!todayEntry.mealDinner },
+    ];
+    const allHabitsDone = lines.every(l => l.done);
+    if (allHabitsDone) {
+      lines.push({ icon: '⭐', label: 'Bonus jour parfait', done: true, xp: 3 });
+    }
+    if (todayEntry.mood != null) {
+      lines.push({ icon: '😊', label: 'Humeur renseignée', done: true });
+    }
+    if (todayEntry.sleepQuality) {
+      lines.push({ icon: '😴', label: 'Sommeil renseigné', done: true });
+    }
+    if (todayEntry.notes && todayEntry.notes.length > 10) {
+      lines.push({ icon: '📝', label: 'Notes écrites', done: true });
+    }
+    if (streak >= 7) {
+      lines.push({ icon: '🔥', label: 'Streak ' + streak + ' jours', done: true, xp: 2 });
+    } else if (streak >= 3) {
+      lines.push({ icon: '🔥', label: 'Streak ' + streak + ' jours', done: true, xp: 1 });
+    }
+
+    // Compute total XP
+    let totalXp = 0;
+    lines.forEach(l => {
+      if (!l.xp) l.xp = l.done ? 1 : 0;
+      totalXp += l.xp;
+    });
+
+    // Render lines
+    const linesEl = document.getElementById('creature-recap-lines');
+    if (linesEl) {
+      linesEl.innerHTML = lines.map((l, i) => `
+        <div class="creature-recap-line ${l.done ? '' : 'dimmed'}" style="transition-delay: ${i * 80}ms">
+          <span class="creature-recap-line-label">
+            <span class="creature-recap-line-icon">${l.icon}</span>
+            ${l.label}
+          </span>
+          <span class="creature-recap-line-xp ${l.xp === 0 ? 'zero' : ''}">
+            ${l.done ? '+' + l.xp + ' XP' : '—'}
+          </span>
+        </div>
+      `).join('');
+
+      // Animate lines one by one
+      requestAnimationFrame(() => {
+        const lineEls = linesEl.querySelectorAll('.creature-recap-line');
+        lineEls.forEach((el, i) => {
+          setTimeout(() => el.classList.add('visible'), i * 80 + 100);
+        });
+      });
+    }
+
+    // Total
+    const totalEl = document.getElementById('creature-recap-total-xp');
+    if (totalEl) totalEl.textContent = '+' + totalXp + ' XP';
+
+    // Progress bar
+    const xpInfo = DATA.getXpToNextStage(coll.xp, collKey);
+    const nextStage = DATA.getNextStage(coll.stage);
+    const barFill = document.getElementById('creature-recap-bar-fill');
+    const barLabel = document.getElementById('creature-recap-bar-label');
+
+    if (barFill) {
+      barFill.style.width = '0';
+      barFill.style.background = `linear-gradient(90deg, ${collData.glowColor}, #f48fb1)`;
+      setTimeout(() => {
+        barFill.style.width = Math.round(xpInfo.progress * 100) + '%';
+      }, lines.length * 80 + 300);
+    }
+    if (barLabel) {
+      if (nextStage) {
+        barLabel.textContent = xpInfo.needed + ' XP avant ' + collData.stages[nextStage].name;
+      } else {
+        barLabel.textContent = 'Évolution maximale ! ✨';
+      }
+    }
   }
 
   function exportForDoctor(entries, existingWindow) {
@@ -2287,217 +2423,20 @@
     }
   }
 
-  // === MOCHI : mascotte kawaii interactive ===
-  let mochiState = 'idle';
-  let mochiIdleTimer = null;
-  let mochiBlinkInterval = null;
-  let mochiAnimTimeout = null;
+  // === CREATURE SYSTEM (mascotte évolutive) ===
+  // Le code principal est dans creature.js / creature-data.js
+  // Ici on expose juste les helpers d'intégration pour app.js
 
-  function setMochiEyes(state) {
-    const eyes = document.getElementById('mochi-eyes');
-    const eyesClosed = document.getElementById('mochi-eyes-closed');
-    const eyesSad = document.getElementById('mochi-eyes-sad');
-    const eyesStar = document.getElementById('mochi-eyes-star');
-    const eyesSleep = document.getElementById('mochi-eyes-sleep');
-    const mouth = document.getElementById('mochi-mouth');
-    const mouthSad = document.getElementById('mochi-mouth-sad');
-    const mouthSleep = document.getElementById('mochi-mouth-sleep');
-    const armsHug = document.getElementById('mochi-arms-hug');
-    const zzz = document.getElementById('mochi-zzz');
-
-    // Reset all
-    [eyes, eyesClosed, eyesSad, eyesStar, eyesSleep].forEach(
-      (el) => { if (el) el.style.display = 'none'; }
-    );
-    [mouthSad, mouthSleep].forEach(
-      (el) => { if (el) el.style.display = 'none'; }
-    );
-    if (mouth) mouth.style.display = '';
-    if (armsHug) armsHug.style.display = 'none';
-    if (zzz) zzz.style.display = 'none';
-
-    switch (state) {
-      case 'blink':
-        if (eyesClosed) eyesClosed.style.display = '';
-        break;
-      case 'sad':
-        if (eyesSad) eyesSad.style.display = '';
-        if (mouth) mouth.style.display = 'none';
-        if (mouthSad) mouthSad.style.display = '';
-        if (armsHug) armsHug.style.display = '';
-        break;
-      case 'star':
-        if (eyesStar) eyesStar.style.display = '';
-        break;
-      case 'sleep':
-        if (eyesSleep) eyesSleep.style.display = '';
-        if (mouth) mouth.style.display = 'none';
-        if (mouthSleep) mouthSleep.style.display = '';
-        if (zzz) zzz.style.display = '';
-        break;
-      default: // normal
-        if (eyes) eyes.style.display = '';
-        break;
+  function setupCreatureSystem() {
+    if (window.CreatureSystem) {
+      window.CreatureSystem.init();
     }
   }
 
-  function setMochiState(newState, duration) {
-    const container = document.getElementById('mochi-container');
-    if (!container) return;
-
-    // Remove old state class
-    container.className = 'mochi-container';
-    mochiState = newState;
-
-    // Force reflow pour relancer l'animation
-    void container.offsetWidth;
-    container.classList.add('state-' + newState);
-
-    // Set eyes based on state
-    if (newState === 'sad') setMochiEyes('sad');
-    else if (newState === 'sleep') setMochiEyes('sleep');
-    else if (newState === 'big-jump' || newState === 'dance') setMochiEyes('star');
-    else setMochiEyes('normal');
-
-    // Auto return to idle after duration
-    if (mochiAnimTimeout) clearTimeout(mochiAnimTimeout);
-    if (duration) {
-      mochiAnimTimeout = setTimeout(() => {
-        setMochiState('idle');
-      }, duration);
+  function creatureReact(action) {
+    if (window.CreatureSystem) {
+      window.CreatureSystem.react(action);
     }
-
-    resetMochiIdleTimer();
-  }
-
-  function mochiShowHeart() {
-    const heart = document.getElementById('mochi-heart');
-    if (!heart) return;
-    heart.classList.remove('show');
-    void heart.offsetWidth;
-    heart.classList.add('show');
-    setTimeout(() => heart.classList.remove('show'), 1000);
-  }
-
-  function mochiBlink() {
-    if (mochiState !== 'idle' && mochiState !== 'sit') return;
-    setMochiEyes('blink');
-    setTimeout(() => {
-      if (mochiState === 'idle' || mochiState === 'sit') setMochiEyes('normal');
-    }, 150);
-  }
-
-  function resetMochiIdleTimer() {
-    if (mochiIdleTimer) clearTimeout(mochiIdleTimer);
-    mochiIdleTimer = setTimeout(() => {
-      if (mochiState === 'idle') {
-        setMochiState('sit');
-      }
-    }, 30000);
-  }
-
-  function mochiReact(action) {
-    switch (action) {
-      case 'check':
-        setMochiState('jump', 600);
-        mochiShowHeart();
-        break;
-      case 'mood-happy':
-        setMochiState('big-jump', 800);
-        break;
-      case 'mood-sad':
-        setMochiState('sad', 3000);
-        break;
-      case 'all-done':
-        setMochiState('dance', 3000);
-        break;
-      case 'submit':
-        setMochiState('big-jump', 1000);
-        mochiShowHeart();
-        break;
-      case 'sleep':
-        setMochiState('sleep');
-        break;
-      case 'wake':
-        setMochiState('idle');
-        break;
-      default:
-        setMochiState('idle');
-    }
-  }
-
-  function checkAllObjectivesDone() {
-    const checks = ['drank1L', 'medsMorning', 'medsNoon', 'medsEvening', 'mealBreakfast', 'mealLunch', 'mealDinner'];
-    return checks.every((id) => {
-      const el = document.getElementById(id);
-      return el && el.checked;
-    });
-  }
-
-  function setupMochi() {
-    const container = document.getElementById('mochi-container');
-    if (!container) return;
-
-    // Déplace Mochi hors des containers overflow-hidden vers body
-    document.body.appendChild(container);
-
-    // Clignement des yeux toutes les 3-5s
-    mochiBlinkInterval = setInterval(() => {
-      mochiBlink();
-    }, 3000 + Math.random() * 2000);
-
-    // Mode nuit automatique (après 22h, avant 6h)
-    const hour = new Date().getHours();
-    if (hour >= 22 || hour < 6) {
-      mochiReact('sleep');
-    } else {
-      setMochiState('idle');
-    }
-
-    // Réaction quand on clique sur Mochi
-    container.addEventListener('click', () => {
-      if (mochiState === 'sleep') {
-        mochiReact('wake');
-        return;
-      }
-      setMochiState('jump', 600);
-      mochiShowHeart();
-    });
-
-    // Écouter les checkboxes d'objectifs
-    const objectiveIds = ['drank1L', 'medsMorning', 'medsNoon', 'medsEvening', 'mealBreakfast', 'mealLunch', 'mealDinner'];
-    objectiveIds.forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.addEventListener('change', () => {
-          if (el.checked) {
-            if (checkAllObjectivesDone()) {
-              mochiReact('all-done');
-            } else {
-              mochiReact('check');
-            }
-          }
-        });
-      }
-    });
-
-    // Écouter le mood
-    document.querySelectorAll('.mood-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const mood = Number(btn.dataset.mood);
-        if (mood >= 4) mochiReact('mood-happy');
-        else if (mood <= 2) mochiReact('mood-sad');
-        else setMochiState('idle');
-      });
-    });
-
-    // Timer idle
-    resetMochiIdleTimer();
-    document.addEventListener('touchstart', resetMochiIdleTimer, { passive: true });
-    document.addEventListener('click', () => {
-      if (mochiState === 'sit') setMochiState('idle');
-      resetMochiIdleTimer();
-    });
   }
 
   function setupKissModule() {
@@ -2704,7 +2643,7 @@
     setupSymptoms();
     setupSettings();
     setupEveningRitual();
-    setupMochi();
+    setupCreatureSystem();
     setupKissModule();
     setupSse();
 
@@ -2799,11 +2738,11 @@
             }
           }
           showSuccessOverlay(allEntries);
-          mochiReact('submit');
+          creatureReact('submit');
         } else {
           // Jour passé : toast de confirmation + retour à aujourd'hui
           showToast('Journée enregistrée avec succès !');
-          mochiReact('submit');
+          creatureReact('submit');
           setTimeout(() => switchToDate(todayKey), 1500);
         }
       });
